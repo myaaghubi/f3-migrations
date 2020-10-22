@@ -2,7 +2,7 @@
 
 /**
  * @package F3 Migrations
- * @version 1.0.0
+ * @version 1.0.1
  * @link http://github.com/myaghobi/F3-Migrations Github
  * @author Mohammad Yaghobi <m.yaghobi.abc@gmail.com>
  * @copyright Copyright (c) 2020, Mohammad Yaghobi
@@ -12,11 +12,11 @@
 namespace DB\SQL;
 
 class Migrations extends \Prefab {
-  private $version = '1.0.0';
+  private $version = '1.0.1';
   private $enable;
   private $db;
   private $path;
-  private $classPrefix = 'db_migrations_case';
+  private $classPrefix = 'migration_case';
   private $model;
 
     
@@ -364,7 +364,7 @@ class Migrations extends \Prefab {
     if (file_exists($this->path) && is_dir($this->path)) {
       $directoryIterator = new \RecursiveDirectoryIterator($this->path);
       $iteratorIterator = new \RecursiveIteratorIterator($directoryIterator);
-      $fileList = new \RegexIterator($iteratorIterator, '/migrations_((.*?)).php/');
+      $fileList = new \RegexIterator($iteratorIterator, '/migration_case_((.*?)).php/');
       foreach ($fileList as $file) {
         $classVersion = $this->getFileVersionNumber($file);
 
@@ -400,32 +400,31 @@ class Migrations extends \Prefab {
   function getFileVersionNumber($path) {
     $fileName = pathinfo($path)['filename'];
     $version = 0;
-    preg_match('/\d+((\.\d+)*)?/', $fileName, $matches);
+    preg_match('/migration_case_(\d+((\.\d+)*))?/', $fileName, $matches);
     if ($matches) {
-      $version = $matches[0];
+      $version = $matches[1];
     }
 
-    // return $this->getSafeVersionNumber($version);
     return $version;
   }
 
-    
+
   /**
    * log the message
    *
    * @param  string $message
-   * @param  bool $addToResult
    * @return void
    */
   static function logIt($message) {
-    $logger = new \Log('migrations.log');
-    $logger->write($message);
-
     $f3 = \Base::instance();
+
     if (empty($f3->get('SESSION.migrations.result'))) {
       $f3->set('SESSION.migrations.result', array());
     }
     $f3->push('SESSION.migrations.result', $message);
+
+    $logger = new \Log('migrations.log');
+    $logger->write($f3->scrub($message));
   }
   
 
@@ -617,11 +616,11 @@ class MigrationsModel extends \DB\SQL\Mapper {
 
 
 /**
- * MigrationsCase, the parent of migrations class
+ * use as the parent of migration cases
  */
-class MigrationsCase {
+class MigrationCase {
   /**
-   * this method calls to upgrade
+   * this method will call on upgrade
    *
    * @param  object $f3
    * @param  object $db
@@ -635,9 +634,9 @@ class MigrationsCase {
     return true;
   }
 
-    
+
   /**
-   * this method calls to downgrade
+   * this method will call on upgrade
    *
    * @param  object $f3
    * @param  object $db
@@ -647,7 +646,9 @@ class MigrationsCase {
   public function down($f3, $db, $schema) {
     // your cods here
 
-    // return TRUE when the downgrader be successful 
+    // return TRUE when the downgrade be successful 
     return true;
   }
 }
+
+?>
