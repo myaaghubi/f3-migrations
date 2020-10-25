@@ -2,7 +2,7 @@
 
 /**
  * @package F3 Migrations
- * @version 1.0.1
+ * @version 1.1.0
  * @link http://github.com/myaghobi/F3-Migrations Github
  * @author Mohammad Yaghobi <m.yaghobi.abc@gmail.com>
  * @copyright Copyright (c) 2020, Mohammad Yaghobi
@@ -12,14 +12,14 @@
 namespace DB\SQL;
 
 class Migrations extends \Prefab {
-  private $version = '1.0.1';
-  private $enable;
+  private $version = '1.1.0';
   private $db;
   private $path;
   private $classPrefix = 'migration_case';
   private $model;
+  private $f3;
 
-    
+
   /**
    * Migrations constructor
    *
@@ -27,35 +27,32 @@ class Migrations extends \Prefab {
    * @return void
    */
   function __construct(\DB\SQL $db) {
-    $this->enable = false;
-
-    $f3 = \Base::instance();
-    if ($f3->get('DEBUG') >= 3) {
-      $this->enable = true;
-    }
-
-    if (!$this->enable) {
+    $this->f3 = \Base::instance();
+    
+    if ($this->f3->get('DEBUG') < 3) {
       return;
     }
 
-    $this->db = $db;
-
-    if (!file_exists($this->path) || !is_dir($this->path)) {
-      $cursor = new \ReflectionClass('db\cursor');
-      $this->path = dirname($cursor->getFileName(), 1) . DIRECTORY_SEPARATOR . 'migrations';
-      if (!file_exists($this->path)) {
-        mkdir($this->path);
-      }
+    if ($this->f3->get('migrations.ENABLE')===false) {
+      return;
     }
 
-    $this->model = new \db\sql\MigrationsModel($db);
+    $path = $this->f3->get('migrations.PATH')?:'db'.DIRECTORY_SEPARATOR.'migrations';
+    // this line will help us to make a relative path
+    $baseClass = new \ReflectionClass('Base');
+    $this->path = dirname($baseClass->getFileName()) . DIRECTORY_SEPARATOR . $path;
 
-    $f3->route('GET /migrations', 'db\sql\Migrations->showHome');
-    $f3->route('GET /migrations/result', 'db\sql\Migrations->showResult');
-    $f3->route('GET /migrations/@action', 'db\sql\Migrations->doIt');
+    $this->db = $db;
+    $this->model = new \db\sql\MigrationsModel($this->db);
+
+    $this->f3->route('GET /migrations', 'db\sql\Migrations->showHome');
+    $this->f3->route(array(
+      'GET /migrations/@action', 
+      'GET /migrations/@action/@target'
+    ), 'db\sql\Migrations->doIt');
   }
 
-  
+
   /**
    * show home screen
    *
@@ -63,26 +60,85 @@ class Migrations extends \Prefab {
    * @return void
    */
   function showHome($f3) {
+    $versionCurrent = $this->currentDBVersion();
+
+    $base = $f3->get('BASE');
+
+    // going to make a list of available versions to upgrade
+    $upgradeCases = $this->upgradeCases();
+    foreach ($upgradeCases as &$case) {
+      $case = "<a title='Migrate to $case' href='$base/migrations/migrate/$case'>$case</a>";
+    }
+    $upgradesList = implode(', ', $upgradeCases);
+
+    // going to make a list of available versions to downgrade
+    $downgradeCases = $this->downgradeCases();
+    if (count($downgradeCases) > 0) {
+      // each MigrationCase is responsible to upgrade to itself and downgrade from itself
+      // for downgrade, if the target version is x we need to just downgrade all cases with higher version that x
+      // so for downgrade, we have nothing to do with the case version x
+      unset($downgradeCases[0]);
+      $downgradeCases[] = 0;
+    }
+    foreach ($downgradeCases as &$case) {
+      $case = "<a title='Rollback from $versionCurrent to $case' href='$base/migrations/rollback/$case'>$case</a>";
+    }
+    $downgradeList = implode(', ', $downgradeCases);
+
+
     $actions = array(
-      "Migrate" => "Use <code>migrate</code> to run all of the migrations you have created.",
-      "Refresh" => "The <code>refresh</code> action will roll back all of your migrations and then run the <code>migrate</code>.",
-      "Fresh" => "The <code>fresh</code> action will drop all tables from the database and then execute the <code>migrate</code>.",
-      "Reset" => "The <code>reset</code> action will roll back all of migrations.",
-      "Retry" => "The <code>retry</code> action will try to fix last failed action.",
+      "migrate" => array(
+        "name" => "Migrate",
+        "title" => "Migrate to highest case",
+        "desc" => "Use <code>migrate</code> to run all of the migrations you have created.",
+        "extra" => "Targets: " . ($upgradesList ?: 'none'),
+      ),
+      "rollback" => array(
+        "name" => "Rollback",
+        "title" => "Rollback all cases",
+        "desc" => "Use <code>rollback</code> to get back on your migrations.",
+        "extra" => "Targets: " . ($downgradeList ?: 'none'),
+      ),
+      "refresh" => array(
+        "name" => "Refresh",
+        "title" => "Rollback & Migrate",
+        "desc" => "The <code>refresh</code> action will rollback all of your migrations and then run the <code>migrate</code>.",
+        "extra" => "",
+      ),
+      "fresh" => array(
+        "name" => "Fresh",
+        "title" => "Drop all & Migrate",
+        "desc" => "The <code>fresh</code> action will drop all tables from the database and then execute the <code>migrate</code>.",
+        "extra" => "",
+      ),
+      "reset" => array(
+        "name" => "Reset",
+        "title" => "An alias of rollback",
+        "desc" => "The <code>reset</code> action will rollback all of migrations.",
+        "extra" => "",
+      ),
+      "retry" => array(
+        "name" => "Retry",
+        "title" => "Repeat last action",
+        "desc" => "The <code>retry</code> action will try to fix last failed action.",
+        "extra" => "",
+      )
     );
 
     $list = '';
-    $base = $f3->get('BASE');
-    foreach ($actions as $action => $desc) {
-      $list .= "<dt><b>$action</b> (<a title='do it' href='$base/migrations/" . strtolower($action) . "'>" . strtolower($action) . "</a>)</dt>";
-      $list .= "<dd>$desc</dd>";
+    foreach ($actions as $action => $array) {
+      $list .= "<dt><b>$array[name]</b> (<a title='$array[title]' href='$base/migrations/$action'>$action</a>)</dt>";
+      $list .= "<dd>$array[desc]<br><small>$array[extra]</small></dd>";
     }
-    $list = '<dl> ' . $list . ' </dl>';
+    $list = "<dl>$list</dl><small>DB Version: $versionCurrent</small>";
 
-    print $this->serve("Migrations", $list);
+    $error = !is_dir($this->path)?'The <code>PATH</code> is not valid!':'';
+    $error = !file_exists($this->path)?'The <code>PATH</code> is not exists!':'';
+
+    print $this->serve("Migrations", $list, $error);
   }
 
-    
+
   /**
    * show logs of the last action
    *
@@ -90,21 +146,23 @@ class Migrations extends \Prefab {
    * @return void
    */
   function showResult($f3) {
-    if (empty($f3->get('SESSION.migrations.result'))) {
-      $f3->reroute('/migrations');
+    $log = $f3->get('lastLog');
+    $logError = $f3->get('lastLogError');
+    if (empty($log)) {
+      $log = 'There is no log to show!';
+    } else if (is_array($log)) {
+      $log = implode('<br>', $log);
     }
-    $result = $f3->get('SESSION.migrations.result');
-    
-    $extra = '<br><a href="'.$f3->get('BASE').'/migrations">Go Back</a>';
-    $content = implode('<br>', $result);
-    if (strpos($content, 'failed')!==false) {
-      print $this->serve('Result', null, $content, null, $extra);
+
+    $extra = '<br><a href="' . $f3->get('BASE') . '/migrations">Go Back</a>';
+    if ($logError) {
+      print $this->serve('Result', null, $log, null, $extra);
     } else {
-      print $this->serve('Result', null, null, $content, $extra);
+      print $this->serve('Result', null, null, $log, $extra);
     }
   }
 
-  
+
   /**
    * do the requested action
    *
@@ -113,34 +171,38 @@ class Migrations extends \Prefab {
    */
   function doIt($f3) {
     $action = $f3->get('PARAMS.action');
-    $f3->clear('SESSION.migrations.result');
-    Migrations::logIt("Action: <b>$action</b>");
+    $target = $f3->get('PARAMS.target');
+    Migrations::logIt("Action: <b>$action</b>", false, true);
 
-    $incomplete = $this->model->incompleteCases(1, true);
-    if ($this->model->status<0) {
-      $incomplete = $this->model->incompleteCases(1, false);
-    }
-    if (count($incomplete)>0 && $action!='retry' && $action!='fresh') {
-      Migrations::logIt("You have a failed action! fix it and use <code>retry</code>.");
-      Migrations::logIt("Details:");
+    $incomplete = $this->model->incompleteCases(1, false);
+    if (count($incomplete) > 0 && $action != 'retry' && $action != 'fresh') {
+      Migrations::logIt("You have a failed case! fix it and use <code>retry</code>.", true);
+
+      if ($incomplete[0]->status < 0) {
+        $incomplete = $this->model->incompleteCases(1, false);
+      }
       $version = $incomplete[0]->version;
       $stepId = $incomplete[0]->stepId;
       $datetime = date('Y-m-d H:i:s', $this->model->created_at);
 
-      $status = 'error';
-      if ($this->model->status>0) {
-        $status = 'up()';
-      } else if ($this->model->status<0) {
-        $status = 'down()';
+      $method = 'error';
+      if ($incomplete[0]->status > 0) {
+        $method = 'up()';
+      } else if ($incomplete[0]->status < 0) {
+        $method = 'down()';
       }
-      Migrations::logIt("version: <b>$version</b>, status: <b>$status</b>, stepId: <b>$stepId</b>, DateTime: <b>$datetime</b>");
+      Migrations::logIt("Details => version: <b>$version</b>, method: <b>$method</b>, stepId: <b>$stepId</b>, DateTime: <b>$datetime</b>", true);
 
-      $f3->reroute('/migrations/result');
+      $this->showResult($f3);
+      return;
     }
 
     switch ($action) {
       case 'migrate':
-        $this->migrate($f3);
+        $this->migrate($f3, $target);
+        break;
+      case 'rollback':
+        $this->rollback($f3, $target);
         break;
       case 'refresh':
         $this->refresh($f3);
@@ -149,7 +211,7 @@ class Migrations extends \Prefab {
         $this->fresh($f3);
         break;
       case 'reset':
-        $this->reset($f3);
+        $this->rollback($f3);
         break;
       case 'retry':
         $this->retry($f3);
@@ -158,23 +220,38 @@ class Migrations extends \Prefab {
         Migrations::logIt("Wrong Action!");
     }
 
-    $f3->reroute('/migrations/result');
+    $this->showResult($f3);
   }
-  
+
 
   /**
-   * upgrade to a higher version if exists
+   * upgrade to a higher version
    *
    * @param  object $f3
+   * @param  int $target
    * @return void
    */
-  function migrate($f3) {
-    if ($this->upgrade()) {
-      $this->applyCases($this->db);
+  function migrate($f3, $target) {
+    if ($this->upgrade($target)) {
+      $this->applyCases();
     }
   }
 
-    
+
+  /**
+   * downgrade to a lower version
+   *
+   * @param  object $f3
+   * @param  int $target
+   * @return void
+   */
+  function rollback($f3, $target=null) {
+    if ($this->downgrade($target)) {
+      $this->applyCases();
+    }
+  }
+
+
   /**
    * rollback all upgrades and migrate again
    *
@@ -183,14 +260,14 @@ class Migrations extends \Prefab {
    */
   function refresh($f3) {
     if ($this->downgrade()) {
-      $this->applyCases($this->db);
+      $this->applyCases();
     }
     if ($this->upgrade()) {
-      $this->applyCases($this->db);
+      $this->applyCases();
     }
   }
 
-    
+
   /**
    * drop all tables in the database and migrate again
    *
@@ -201,23 +278,10 @@ class Migrations extends \Prefab {
     $this->model->dropAll();
     $this->model->createTable();
     $this->upgrade();
-    $this->applyCases($this->db);
+    $this->applyCases();
   }
 
-    
-  /**
-   * just rollback the migrations
-   *
-   * @param  object $f3
-   * @return void
-   */
-  function reset($f3) {
-    if ($this->downgrade()) {
-      $this->applyCases($this->db);
-    }
-  }
 
-    
   /**
    * retry on failed/incomplete cases registered in the migrations table
    *
@@ -229,137 +293,202 @@ class Migrations extends \Prefab {
       Migrations::logIt("There is nothing to fix!");
       return;
     }
-    $this->applyCases($this->db);
+    $this->applyCases();
   }
 
-  
+
+  /**
+   * get current version of database according to last migration
+   *
+   * @return string
+   */
+  function currentDBVersion() {
+    $lastCase = $this->model->findCases(1, true);
+    $versionCurrent = isset($lastCase[0]->version) ? $lastCase[0]->version : '0';
+
+    return $versionCurrent;
+  }
+
+
   /**
    * register some cases(records) in the migrations table 
    *
    * @return bool
    */
-  function upgrade() {
-    $cases = $this->model->findCases(1, true);
-    // current version of database stored from last migrations
-    $versionCurrent = isset($cases[0]->version) ?$cases[0]->version: 0;
+  function upgrade($versionTarget = null) {
+    $cases = $this->upgradeCases($versionTarget);
 
-    $classes = $this->getClasses();
-    
-    if (count($classes)==0) {
-      Migrations::logIt("There is nothing to do!");
-      return false;
-    }
-
-    // get highest version of class if target version is not specified
-    // sort array by version:desc
-    uksort($classes, function ($a, $b) {
-      return version_compare($a, $b);
-    });
-    $versionTarget = array_key_last($classes);
-
-    // do we need to upgrade(1) or downgrade(-1) or just nothing to do
-    $status = version_compare($versionTarget, $versionCurrent);
-
-    if ($status == 0) {
+    if (count($cases) == 0) {
       // there is nothing to do
-      Migrations::logIt("Already migrated to <b>$versionTarget</b>!");
+      Migrations::logIt($versionTarget?"Already migrated to <b>$versionTarget</b>!":"There is nothing to do.");
       return false;
     }
 
     $stepId = uniqid();
-    foreach ($classes as $key=>$class) {
-      $statusToFile = version_compare($versionTarget, $key);
-      $statusToCurrent = version_compare($key, $versionCurrent);
-
+    foreach ($cases as $version) {
       // all of migrations with higher version than current version of db
-      if ($statusToCurrent == 1 && $statusToFile >= 0) {
-        $this->model->addCase($key, 1, $stepId);
+      if (version_compare($versionTarget, $version) >= 0) {
+        $this->model->addCase($version, 1, $stepId);
       }
     }
     return true;
   }
 
-  
+
+  /**
+   * get available cases to upgrade
+   *
+   * @param  string $versionTarget
+   * @return string[]
+   */
+  function upgradeCases(&$versionTarget = null) {
+    $versionCurrent = $this->currentDBVersion();
+
+    $versions = $this->getMigrationCases(true);
+    // sort array by version
+    usort($versions, function ($a, $b) {
+      return version_compare($a, $b);
+    });
+
+    // get highest version if target version is not specified
+    if ($versionTarget == null) {
+      $versionTarget = end($versions);
+    }
+
+    $result = array();
+
+    $status = version_compare($versionTarget, $versionCurrent);
+
+    // do we need to upgrade
+    if ($status <= 0) {
+      return $result;
+    }
+
+    foreach ($versions as $version) {
+      $statusToFile = version_compare($versionTarget, $version);
+      $statusToCurrent = version_compare($version, $versionCurrent);
+
+      // all higher versions than current version of db
+      if ($statusToCurrent == 1 && $statusToFile >= 0) {
+        $result[] = $version;
+      }
+    }
+    return $result;
+  }
+
+
   /**
    * register some cases(records) in the migrations table 
    *
    * @return bool
    */
-  function downgrade() {
+  function downgrade($versionTarget = null) {
     // load all migrated to rollback 
-    $cases = $this->model->findCases(0, false);
-    if (count($cases)==0) {
-      Migrations::logIt("No any migration case exists to make rollback/reset!");
+    $cases = $this->downgradeCases($versionTarget);
+    if (count($cases) == 0) {
+      Migrations::logIt("No any migration case available to make rollback/reset!");
       return false;
     }
-    
+
+
     $stepId = uniqid();
-    foreach ($cases as $case) {
-      $this->model->addCase($case->version, -1, $stepId);
+    foreach ($cases as $version) {
+      $this->model->addCase($version, -1, $stepId);
     }
     return true;
   }
 
-  
+
+  /**
+   * get available cases to downgrade
+   *
+   * @param  string $versionTarget
+   * @return string[]
+   */
+  function downgradeCases(&$versionTarget = null) {
+    $versionCurrent = $this->currentDBVersion();
+
+    // get lowes version if target version is not specified
+    if ($versionTarget == null) {
+      $versionTarget = 0;
+    }
+
+
+    $status = version_compare($versionTarget, $versionCurrent);
+
+    $result = array();
+    // do we need to downgrade
+    if ($status >= 0) {
+      return $result;
+    }
+
+    $cases = $this->model->findCases(0, true);
+    foreach ($cases as $case) {
+      $statusToCase = version_compare($versionTarget, $case->version);
+      $statusToCurrent = version_compare($case->version, $versionCurrent);
+
+      // all lower versions than current version
+      if ($statusToCurrent <= 0 && $statusToCase < 0) {
+        $result[] = $case->version;
+      }
+    }
+    return $result;
+  }
+
   /**
    * apply the cases registered in the migrations table
    *
    * @param  object $db
    * @return void
    */
-  function applyCases($db) {
-    // load all migrations need
+  function applyCases() {
+    // load all incomplete/failed migrations need
     $incompletes = $this->model->incompleteCases(0, false);
-    if ($this->model->status<0) {
-      $incompletes = $this->model->incompleteCases(0, true);
+    if (count($incompletes) == 0) {
+      return;
     }
     $status = $incompletes[0]->status;
 
-    $f3 = \Base::instance();
-    
     // array of class as version => class
-    $classes = $this->getClasses();
+    $classes = $this->getMigrationCases();
 
     // just triming the versions we don't need to
-    foreach($incompletes as $incomplete){
+    foreach ($incompletes as $incomplete) {
+      $this->f3->get('benchmark')->checkPoint('loop');
       if (!isset($classes[$incomplete->version])) {
-        Migrations::logIt("The file associated with version $incomplete->version is missing!");
+        Migrations::logIt("The file associated with the migration case version $incomplete->version is missing!", true);
         return;
       }
       $class = $classes[$incomplete->version];
       $methodName = $this->classPrefix . '_' . $this->getSafeVersionNumber($incomplete->version);
-
-      try {
-        eval(" \$this->$methodName=" . str_replace(['<?php', '?>'], '', $class));
-
-        $schema = new \db\sql\Schema($db);
-        if ($status>0) {
-          $result = @$this->$methodName->up($f3, $this->db, $schema);
-          Migrations::logIt("Upgrade to <b>$incomplete->version</b>: <b>" . ($result ? 'done' : 'failed')."</b>");
-        } else if ($status<0) {
-          $result = @$this->$methodName->down($f3, $this->db, $schema);
-          Migrations::logIt("Downgrade from <b>$incomplete->version</b>: <b>" . ($result ? 'done' : 'failed')."</b>");
-        }
-
-        if (!$result) {
-          break;
-        }
-        $incomplete->updateCase($incomplete->id, $status, $result);
-      } catch (\ParseError $e) {
-        Migrations::logIt("Migrations Error! ".$e->getMessage());
+      
+      eval(" \$this->$methodName=" . str_replace(['<?php', '?>'], '', $class));
+      
+      $schema = new \db\sql\Schema($this->db);
+      if ($status > 0) {
+        $result = @$this->$methodName->up($this->f3, $this->db, $schema);
+      } else if ($status < 0) {
+        $result = @$this->$methodName->down($this->f3, $this->db, $schema);
       }
 
-      $incomplete->next();
+      Migrations::logIt(($status>0?'Upgrade':'Downgrade')." from <b>$incomplete->version</b>: <b>" . ($result ? 'done' : 'failed') . '</b>', !$result);
+
+      if (!$result) {
+        break;
+      }
+
+      $this->f3->get('benchmark')->checkPoint('update');
+      $this->model->updateCase($incomplete->id, $status, $result);
     }
   }
 
-    
+
   /**
    * get the files/classes in /migrations directory as $version=>$class
    *
    * @return array<string,string>
    */
-  function getClasses() {
+  function getMigrationCases($loadJustVersions = false) {
     $classes = array();
     if (file_exists($this->path) && is_dir($this->path)) {
       $directoryIterator = new \RecursiveDirectoryIterator($this->path);
@@ -367,6 +496,10 @@ class Migrations extends \Prefab {
       $fileList = new \RegexIterator($iteratorIterator, '/migration_case_((.*?)).php/');
       foreach ($fileList as $file) {
         $classVersion = $this->getFileVersionNumber($file);
+        if ($loadJustVersions) {
+          $classes[] = $classVersion;
+          continue;
+        }
 
         $fileContent = file_get_contents($file);
 
@@ -390,7 +523,7 @@ class Migrations extends \Prefab {
     return str_replace('.', '_', $versionNumber);
   }
 
-    
+
   /**
    * get the version number, the version number could be a timestamp
    *
@@ -413,20 +546,28 @@ class Migrations extends \Prefab {
    * log the message
    *
    * @param  string $message
+   * @param  bool $resetResult
    * @return void
    */
-  static function logIt($message) {
+  static function logIt($message, $error=false, $resetResult = false) {
     $f3 = \Base::instance();
-
-    if (empty($f3->get('SESSION.migrations.result'))) {
-      $f3->set('SESSION.migrations.result', array());
+    if ($resetResult) {
+      $f3->set('lastLog', array());
+      $f3->set('lastLogError', false);
     }
-    $f3->push('SESSION.migrations.result', $message);
 
-    $logger = new \Log('migrations.log');
-    $logger->write($f3->scrub($message));
+    $f3->push('lastLog', $message);
+    if ($error) {
+      $f3->set('lastLogError', $error);
+    }
+
+    
+    if ($f3->get('migrations.LOG')!==false) {
+      $logger = new \Log('migrations.log');
+      $logger->write($f3->scrub($message));
+    }
   }
-  
+
 
   /**
    * make the output
@@ -438,12 +579,12 @@ class Migrations extends \Prefab {
    * @param  string $extra
    * @return string
    */
-  function serve($title, $info=null, $error=null, $success=null, $extra=null) {
-    return '<!DOCTYPE html>
+  function serve($title, $info = null, $error = null, $success = null, $extra = null) {
+    $body = '<!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="utf-8" />
-        <title>'.$title.'</title>
+        <title>' . $title . '</title>
         <style>
         body {background: #f5f5f5;margin: 1em;}
         dt {margin-top: 0.7em;}
@@ -457,17 +598,18 @@ class Migrations extends \Prefab {
     </head>
     <body>
     <div class="row">
-      <h1>'.$title.'</h1> 
+      <h1>' . $title . '</h1> 
       <div class="error">' . $error . '</div>
       <div class="success">' . $success . '</div>
-      <div class="info">'.$info.'</div>
-      '.$extra.'
+      <div class="info">' . $info . '</div>
+      ' . $extra . '
       <hr>
-      <div class="footer"><a href="https://github.com/myaghobi/f3-migrations">F3-Migrations '.$this->version.'</a></div>
+      <div class="footer"><a href="https://github.com/myaghobi/f3-migrations">Fat-Free Migrations ' . $this->version . '</a></div>
     </div>
     </body>
     </html>
     ';
+    return $body;
   }
 }
 
@@ -478,7 +620,7 @@ class Migrations extends \Prefab {
 class MigrationsModel extends \DB\SQL\Mapper {
   private $schema;
   private $tableName;
-  
+
   /**
    * Migrations constructor
    *
@@ -493,7 +635,7 @@ class MigrationsModel extends \DB\SQL\Mapper {
 
     parent::__construct($db, $this->tableName, null);
   }
-  
+
 
   /**
    * add new case(record) in the migrations table
@@ -511,7 +653,7 @@ class MigrationsModel extends \DB\SQL\Mapper {
     $this->save();
   }
 
-    
+
   /**
    * update the case(record)
    *
@@ -522,15 +664,15 @@ class MigrationsModel extends \DB\SQL\Mapper {
    */
   public function updateCase($id, $status, $result) {
     $this->load(array('id=?', $id));
-    if ($status<0 and $result) {
+    if ($status < 0 and $result) {
       $this->erase(array('version=?', $this->version));
       return;
     }
     $this->result = $result;
-    $this->save();
+    $this->update();
   }
 
-    
+
   /**
    * find some cases(records)
    *
@@ -543,13 +685,13 @@ class MigrationsModel extends \DB\SQL\Mapper {
     if ($orderDesc) {
       $options["order"] = "created_at desc, id desc";
     }
-    if ($limit>0) {
+    if ($limit > 0) {
       $options["limit"] = $limit;
     }
     return $this->find(null, $options);
   }
 
-  
+
   /**
    * find incomplete cases(records)
    *
@@ -562,24 +704,23 @@ class MigrationsModel extends \DB\SQL\Mapper {
     if ($orderDesc) {
       $options["order"] = "created_at desc, id desc";
     }
-    if ($limit>0) {
+    if ($limit > 0) {
       $options["limit"] = $limit;
     }
-    return $this->find(array('result=?', 0), $options);
+    return @$this->find(array('result=?', 0), $options);
   }
 
-    
+
   /**
    * is any incomplete/failed case in the migrations table
    *
    * @return bool
    */
   public function failedCaseExists() {
-    $this->incompleteCases(1);
-    return count($this->incompleteCases(1))>0;
+    return count($this->incompleteCases(1)) > 0;
   }
 
-    
+
   /**
    * drop all table of database
    *
@@ -593,7 +734,7 @@ class MigrationsModel extends \DB\SQL\Mapper {
     }
   }
 
-    
+
   /**
    * create the migrations table
    *
@@ -650,5 +791,3 @@ class MigrationCase {
     return true;
   }
 }
-
-?>

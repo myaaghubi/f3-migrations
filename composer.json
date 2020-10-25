@@ -1,0 +1,22 @@
+{
+	"name": "myaghobi/f3-migrations",
+	"description": "A database helper plugin for the Fat-Free framework.",
+	"keywords": [
+		"f3-migrations",
+		"fat-free-plugin",
+		"fat-free-framework",
+		"sql-database",
+		"database-migration"
+	],
+	"homepage": "https://github.com/myaghobi/f3-migrations",
+	"license": "GPL-3.0",
+	"autoload": {
+		"classmap": [
+			"lib/"
+		]
+	},
+	"require": {
+		"bcosca/fatfree-core": "^3.6",
+		"ikkez/f3-schema-builder": "^2.2.4"
+	}
+}
