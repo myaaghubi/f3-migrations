@@ -2,7 +2,7 @@
 
 /**
  * @package F3 Migrations
- * @version 1.1.0
+ * @version 1.1.2
  * @link http://github.com/myaghobi/F3-Migrations Github
  * @author Mohammad Yaghobi <m.yaghobi.abc@gmail.com>
  * @copyright Copyright (c) 2020, Mohammad Yaghobi
@@ -12,7 +12,7 @@
 namespace DB\SQL;
 
 class Migrations extends \Prefab {
-  private $version = '1.1.1';
+  private $version = '1.1.2';
   private $path;
   private static $log;
   private $classPrefix = 'migration_case';
@@ -457,7 +457,6 @@ class Migrations extends \Prefab {
 
     // just triming the versions we don't need to
     foreach ($incompletes as $incomplete) {
-      $this->f3->get('benchmark')->checkPoint('loop');
       if (!isset($classes[$incomplete->version])) {
         self::logIt("The file associated with the migration case version $incomplete->version is missing!", true);
         return;
@@ -480,7 +479,6 @@ class Migrations extends \Prefab {
         break;
       }
 
-      $this->f3->get('benchmark')->checkPoint('update');
       $this->model->updateCase($incomplete->id, $status, $result);
     }
   }
