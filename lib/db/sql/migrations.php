@@ -12,11 +12,12 @@
 namespace DB\SQL;
 
 class Migrations extends \Prefab {
-  private $version = '1.1.0';
-  private $db;
+  private $version = '1.1.1';
   private $path;
+  private static $log;
   private $classPrefix = 'migration_case';
   private $model;
+  private $db;
   private $f3;
 
 
@@ -37,19 +38,21 @@ class Migrations extends \Prefab {
       return;
     }
 
+    self::$log=$this->f3->get('migrations.LOG')?:true;
+
     $path = $this->f3->get('migrations.PATH')?:'db'.DIRECTORY_SEPARATOR.'migrations';
     // this line will help us to make a relative path
     $baseClass = new \ReflectionClass('Base');
     $this->path = dirname($baseClass->getFileName()) . DIRECTORY_SEPARATOR . $path;
 
     $this->db = $db;
-    $this->model = new \db\sql\MigrationsModel($this->db);
+    $this->model = new \DB\SQL\MigrationsModel($this->db);
 
-    $this->f3->route('GET /migrations', 'db\sql\Migrations->showHome');
+    $this->f3->route('GET /migrations', 'DB\SQL\Migrations->showHome');
     $this->f3->route(array(
       'GET /migrations/@action', 
       'GET /migrations/@action/@target'
-    ), 'db\sql\Migrations->doIt');
+    ), 'DB\SQL\Migrations->doIt');
   }
 
 
@@ -172,11 +175,11 @@ class Migrations extends \Prefab {
   function doIt($f3) {
     $action = $f3->get('PARAMS.action');
     $target = $f3->get('PARAMS.target');
-    Migrations::logIt("Action: <b>$action</b>", false, true);
+    self::logIt("Action: <b>$action</b>", false, true);
 
     $incomplete = $this->model->incompleteCases(1, false);
     if (count($incomplete) > 0 && $action != 'retry' && $action != 'fresh') {
-      Migrations::logIt("You have a failed case! fix it and use <code>retry</code>.", true);
+      self::logIt("You have a failed case! fix it and use <code>retry</code>.", true);
 
       if ($incomplete[0]->status < 0) {
         $incomplete = $this->model->incompleteCases(1, false);
@@ -191,7 +194,7 @@ class Migrations extends \Prefab {
       } else if ($incomplete[0]->status < 0) {
         $method = 'down()';
       }
-      Migrations::logIt("Details => version: <b>$version</b>, method: <b>$method</b>, stepId: <b>$stepId</b>, DateTime: <b>$datetime</b>", true);
+      self::logIt("Details => version: <b>$version</b>, method: <b>$method</b>, stepId: <b>$stepId</b>, DateTime: <b>$datetime</b>", true);
 
       $this->showResult($f3);
       return;
@@ -217,7 +220,7 @@ class Migrations extends \Prefab {
         $this->retry($f3);
         break;
       default:
-        Migrations::logIt("Wrong Action!");
+        self::logIt("Wrong Action!");
     }
 
     $this->showResult($f3);
@@ -290,7 +293,7 @@ class Migrations extends \Prefab {
    */
   function retry($f3) {
     if (!$this->model->failedCaseExists()) {
-      Migrations::logIt("There is nothing to fix!");
+      self::logIt("There is nothing to fix!");
       return;
     }
     $this->applyCases();
@@ -320,7 +323,7 @@ class Migrations extends \Prefab {
 
     if (count($cases) == 0) {
       // there is nothing to do
-      Migrations::logIt($versionTarget?"Already migrated to <b>$versionTarget</b>!":"There is nothing to do.");
+      self::logIt($versionTarget?"Already migrated to <b>$versionTarget</b>!":"There is nothing to do.");
       return false;
     }
 
@@ -386,7 +389,7 @@ class Migrations extends \Prefab {
     // load all migrated to rollback 
     $cases = $this->downgradeCases($versionTarget);
     if (count($cases) == 0) {
-      Migrations::logIt("No any migration case available to make rollback/reset!");
+      self::logIt("No any migration case available to make rollback/reset!");
       return false;
     }
 
@@ -456,7 +459,7 @@ class Migrations extends \Prefab {
     foreach ($incompletes as $incomplete) {
       $this->f3->get('benchmark')->checkPoint('loop');
       if (!isset($classes[$incomplete->version])) {
-        Migrations::logIt("The file associated with the migration case version $incomplete->version is missing!", true);
+        self::logIt("The file associated with the migration case version $incomplete->version is missing!", true);
         return;
       }
       $class = $classes[$incomplete->version];
@@ -464,14 +467,14 @@ class Migrations extends \Prefab {
       
       eval(" \$this->$methodName=" . str_replace(['<?php', '?>'], '', $class));
       
-      $schema = new \db\sql\Schema($this->db);
+      $schema = new \DB\SQL\Schema($this->db);
       if ($status > 0) {
         $result = @$this->$methodName->up($this->f3, $this->db, $schema);
       } else if ($status < 0) {
         $result = @$this->$methodName->down($this->f3, $this->db, $schema);
       }
 
-      Migrations::logIt(($status>0?'Upgrade':'Downgrade')." from <b>$incomplete->version</b>: <b>" . ($result ? 'done' : 'failed') . '</b>', !$result);
+      self::logIt(($status>0?'Upgrade':'Downgrade')." from <b>$incomplete->version</b>: <b>" . ($result ? 'done' : 'failed') . '</b>', !$result);
 
       if (!$result) {
         break;
@@ -560,9 +563,8 @@ class Migrations extends \Prefab {
     if ($error) {
       $f3->set('lastLogError', $error);
     }
-
     
-    if ($f3->get('migrations.LOG')!==false) {
+    if (self::$log) {
       $logger = new \Log('migrations.log');
       $logger->write($f3->scrub($message));
     }
@@ -628,7 +630,7 @@ class MigrationsModel extends \DB\SQL\Mapper {
    * @return void
    */
   public function __construct(\DB\SQL $db) {
-    $this->schema = new \db\sql\Schema($db);
+    $this->schema = new \DB\SQL\Schema($db);
     $this->tableName = 'migrations';
 
     $this->createTable();

@@ -49,13 +49,13 @@ $f3=require('lib/base.php');
 // MySQL, SQLite, PostgreSQL & SQL Server are supported
 $db = new \DB\SQL('mysql:host=localhost;port=3306;dbname='.$DBName, $user, $pass);
 ...
-Migrations::instance($db);
+\DB\SQL\Migrations::instance($db);
 $f3->run();
 ```
 
 ### First migration case
 
-Make your first migration case by creating a file named `migration_case_1.0.0.php` in `lib/db/migrations`(default path) contains a class extended of `\db\sql\MigrationCase`.
+Make your first migration case by creating a file named `migration_case_1.0.0.php` in `lib/db/migrations`(default path) contains a class extended of `\DB\SQL\MigrationCase`.
 
 ### Migrate
 
@@ -100,7 +100,7 @@ An example of the content for a migration case:
 ```php
 <?php
 // the class name can be duplicate
-class CreateProductsTable extends \db\sql\MigrationCase {
+class CreateProductsTable extends \DB\SQL\MigrationCase {
     // this method will call on upgrade
     public function up($f3, $db, $schema) {
         // your cods here
