@@ -2,7 +2,7 @@
 
 /**
  * @package F3 Migrations
- * @version 1.1.2
+ * @version 1.2.0
  * @link http://github.com/myaghobi/F3-Migrations Github
  * @author Mohammad Yaghobi <m.yaghobi.abc@gmail.com>
  * @copyright Copyright (c) 2020, Mohammad Yaghobi
@@ -12,8 +12,9 @@
 namespace DB\SQL;
 
 class Migrations extends \Prefab {
-  private $version = '1.1.2';
+  private $version = '1.2.0';
   private $path;
+  private $dbVersion;
   private static $log;
   private $classPrefix = 'migration_case';
   private $model;
@@ -29,28 +30,29 @@ class Migrations extends \Prefab {
    */
   function __construct(\DB\SQL $db) {
     $this->f3 = \Base::instance();
-    
+
     if ($this->f3->get('DEBUG') < 3) {
       return;
     }
 
-    if ($this->f3->get('migrations.ENABLE')===false) {
+    if ($this->f3->get('migrations.ENABLE') === false) {
       return;
     }
 
-    self::$log=$this->f3->get('migrations.LOG')?:true;
+    self::$log = $this->f3->get('migrations.LOG') ?: true;
 
-    $path = $this->f3->get('migrations.PATH')?:'db'.DIRECTORY_SEPARATOR.'migrations';
+    $path = $this->f3->get('migrations.PATH') ?: 'db' . DIRECTORY_SEPARATOR . 'migrations';
     // this line will help us to make a relative path
     $baseClass = new \ReflectionClass('Base');
     $this->path = dirname($baseClass->getFileName()) . DIRECTORY_SEPARATOR . $path;
 
     $this->db = $db;
     $this->model = new \DB\SQL\MigrationsModel($this->db);
+    $this->dbVersion = $this->model->dbVersion();
 
     $this->f3->route('GET /migrations', 'DB\SQL\Migrations->showHome');
     $this->f3->route(array(
-      'GET /migrations/@action', 
+      'GET /migrations/@action',
       'GET /migrations/@action/@target'
     ), 'DB\SQL\Migrations->doIt');
   }
@@ -63,16 +65,14 @@ class Migrations extends \Prefab {
    * @return void
    */
   function showHome($f3) {
-    $versionCurrent = $this->currentDBVersion();
-
     $base = $f3->get('BASE');
 
     // going to make a list of available versions to upgrade
     $upgradeCases = $this->upgradeCases();
     foreach ($upgradeCases as &$case) {
-      $case = "<a title='Migrate to $case' href='$base/migrations/migrate/$case'>$case</a>";
+      $case = "<li><a title='Migrate to $case' href='$base/migrations/migrate/$case'>$case</a></li>";
     }
-    $upgradesList = implode(', ', $upgradeCases);
+    $upgradesList = implode('', $upgradeCases);
 
     // going to make a list of available versions to downgrade
     $downgradeCases = $this->downgradeCases();
@@ -84,9 +84,9 @@ class Migrations extends \Prefab {
       $downgradeCases[] = 0;
     }
     foreach ($downgradeCases as &$case) {
-      $case = "<a title='Rollback from $versionCurrent to $case' href='$base/migrations/rollback/$case'>$case</a>";
+      $case = "<li><a title='Rollback from $this->dbVersion to $case' href='$base/migrations/rollback/$case'>$case</a></li>";
     }
-    $downgradeList = implode(', ', $downgradeCases);
+    $downgradeList = implode('', $downgradeCases);
 
 
     $actions = array(
@@ -94,13 +94,13 @@ class Migrations extends \Prefab {
         "name" => "Migrate",
         "title" => "Migrate to highest case",
         "desc" => "Use <code>migrate</code> to run all of the migrations you have created.",
-        "extra" => "Targets: " . ($upgradesList ?: 'none'),
+        "extra" => "<ul class='targets'>" . ($upgradesList ?: 'none') . "</ul>",
       ),
       "rollback" => array(
         "name" => "Rollback",
         "title" => "Rollback all cases",
         "desc" => "Use <code>rollback</code> to get back on your migrations.",
-        "extra" => "Targets: " . ($downgradeList ?: 'none'),
+        "extra" => "<ul class='targets'>" . ($downgradeList ?: 'none') . "</ul>",
       ),
       "refresh" => array(
         "name" => "Refresh",
@@ -130,13 +130,13 @@ class Migrations extends \Prefab {
 
     $list = '';
     foreach ($actions as $action => $array) {
-      $list .= "<dt><b>$array[name]</b> (<a title='$array[title]' href='$base/migrations/$action'>$action</a>)</dt>";
-      $list .= "<dd>$array[desc]<br><small>$array[extra]</small></dd>";
+      $list .= " <dt><b>$array[name]</b> (<a title='$array[title]' href='$base/migrations/$action'>$action</a>)</dt>";
+      $list .= " <dd>$array[desc]<br>$array[extra]</dd>";
     }
-    $list = "<dl>$list</dl><small>DB Version: $versionCurrent</small>";
+    $list = "<dl>$list</dl>DB Version: $this->dbVersion";
 
-    $error = !is_dir($this->path)?'The <code>PATH</code> is not valid!':'';
-    $error = !file_exists($this->path)?'The <code>PATH</code> is not exists!':'';
+    $error = !is_dir($this->path) ? 'The <code>PATH</code> is not valid!' : '';
+    $error = !file_exists($this->path) ? 'The <code>PATH</code> is not exists!' : '';
 
     print $this->serve("Migrations", $list, $error);
   }
@@ -248,7 +248,7 @@ class Migrations extends \Prefab {
    * @param  int $target
    * @return void
    */
-  function rollback($f3, $target=null) {
+  function rollback($f3, $target = null) {
     if ($this->downgrade($target)) {
       $this->applyCases();
     }
@@ -301,40 +301,38 @@ class Migrations extends \Prefab {
 
 
   /**
-   * get current version of database according to last migration
-   *
-   * @return string
-   */
-  function currentDBVersion() {
-    $lastCase = $this->model->findCases(1, true);
-    $versionCurrent = isset($lastCase[0]->version) ? $lastCase[0]->version : '0';
-
-    return $versionCurrent;
-  }
-
-
-  /**
    * register some cases(records) in the migrations table 
    *
    * @return bool
    */
   function upgrade($versionTarget = null) {
+    $res = true;
     $cases = $this->upgradeCases($versionTarget);
 
-    if (count($cases) == 0) {
-      // there is nothing to do
-      self::logIt($versionTarget?"Already migrated to <b>$versionTarget</b>!":"There is nothing to do.");
-      return false;
+    if (count($this->getMigrationCases($versionTarget)) == 0) {
+      self::logIt("Target version '<b>$versionTarget</b>' not found!");
+      $res = false;
+    } else if (($status = version_compare($versionTarget, $this->dbVersion)) == 0) {
+      self::logIt("Already migrated to '<b>$versionTarget</b>'!");
+      $res = false;
+    } else if ($status < 0) {
+      self::logIt("Choose a version higher than '<b>$this->dbVersion</b>' or use rollback!");
+      $res = false;
+    } else if (count($cases) == 0) {
+      self::logIt("There is nothing to do!");
+      $res = false;
     }
 
-    $stepId = uniqid();
-    foreach ($cases as $version) {
-      // all of migrations with higher version than current version of db
-      if (version_compare($versionTarget, $version) >= 0) {
-        $this->model->addCase($version, 1, $stepId);
+    if ($res) {
+      $stepId = uniqid();
+      foreach ($cases as $version) {
+        // all of migrations with higher version than current version of db
+        if (version_compare($versionTarget, $version) >= 0) {
+          $this->model->addCase($version, 1, $stepId);
+        }
       }
     }
-    return true;
+    return $res;
   }
 
 
@@ -345,9 +343,7 @@ class Migrations extends \Prefab {
    * @return string[]
    */
   function upgradeCases(&$versionTarget = null) {
-    $versionCurrent = $this->currentDBVersion();
-
-    $versions = $this->getMigrationCases(true);
+    $versions = $this->getMigrationCases(null, true);
     // sort array by version
     usort($versions, function ($a, $b) {
       return version_compare($a, $b);
@@ -360,7 +356,7 @@ class Migrations extends \Prefab {
 
     $result = array();
 
-    $status = version_compare($versionTarget, $versionCurrent);
+    $status = version_compare($versionTarget, $this->dbVersion);
 
     // do we need to upgrade
     if ($status <= 0) {
@@ -369,7 +365,7 @@ class Migrations extends \Prefab {
 
     foreach ($versions as $version) {
       $statusToFile = version_compare($versionTarget, $version);
-      $statusToCurrent = version_compare($version, $versionCurrent);
+      $statusToCurrent = version_compare($version, $this->dbVersion);
 
       // all higher versions than current version of db
       if ($statusToCurrent == 1 && $statusToFile >= 0) {
@@ -386,19 +382,33 @@ class Migrations extends \Prefab {
    * @return bool
    */
   function downgrade($versionTarget = null) {
-    // load all migrated to rollback 
+    $res = true;
     $cases = $this->downgradeCases($versionTarget);
-    if (count($cases) == 0) {
-      self::logIt("No any migration case available to make rollback/reset!");
-      return false;
+
+    if (count($this->model->findCase($versionTarget)) == 0 && $versionTarget > 0) {
+      self::logIt("Target version '<b>$versionTarget</b>' not found!");
+      $res = false;
+    } else if (version_compare($versionTarget, '0') < 0) {
+      self::logIt("The target version is invalid!");
+      $res = false;
+    } else if (($status = version_compare($versionTarget, $this->dbVersion)) == 0) {
+      self::logIt("The version already is '<b>$versionTarget</b>'!");
+      $res = false;
+    } else if ($status > 0) {
+      self::logIt("Choose a version lower than the current version of your database as the target version or use migrate!");
+      $res = false;
+    } else if (count($cases) == 0) {
+      self::logIt("There is nothing to do!");
+      $res = false;
     }
 
-
-    $stepId = uniqid();
-    foreach ($cases as $version) {
-      $this->model->addCase($version, -1, $stepId);
+    if ($res) {
+      $stepId = uniqid();
+      foreach ($cases as $version) {
+        $this->model->addCase($version, -1, $stepId);
+      }
     }
-    return true;
+    return $res;
   }
 
 
@@ -409,15 +419,13 @@ class Migrations extends \Prefab {
    * @return string[]
    */
   function downgradeCases(&$versionTarget = null) {
-    $versionCurrent = $this->currentDBVersion();
-
     // get lowes version if target version is not specified
     if ($versionTarget == null) {
       $versionTarget = 0;
     }
 
 
-    $status = version_compare($versionTarget, $versionCurrent);
+    $status = version_compare($versionTarget, $this->dbVersion);
 
     $result = array();
     // do we need to downgrade
@@ -428,7 +436,7 @@ class Migrations extends \Prefab {
     $cases = $this->model->findCases(0, true);
     foreach ($cases as $case) {
       $statusToCase = version_compare($versionTarget, $case->version);
-      $statusToCurrent = version_compare($case->version, $versionCurrent);
+      $statusToCurrent = version_compare($case->version, $this->dbVersion);
 
       // all lower versions than current version
       if ($statusToCurrent <= 0 && $statusToCase < 0) {
@@ -437,6 +445,7 @@ class Migrations extends \Prefab {
     }
     return $result;
   }
+
 
   /**
    * apply the cases registered in the migrations table
@@ -463,9 +472,9 @@ class Migrations extends \Prefab {
       }
       $class = $classes[$incomplete->version];
       $methodName = $this->classPrefix . '_' . $this->getSafeVersionNumber($incomplete->version);
-      
+
       eval(" \$this->$methodName=" . str_replace(['<?php', '?>'], '', $class));
-      
+
       $schema = new \DB\SQL\Schema($this->db);
       if ($status > 0) {
         $result = @$this->$methodName->up($this->f3, $this->db, $schema);
@@ -473,7 +482,7 @@ class Migrations extends \Prefab {
         $result = @$this->$methodName->down($this->f3, $this->db, $schema);
       }
 
-      self::logIt(($status>0?'Upgrade':'Downgrade')." from <b>$incomplete->version</b>: <b>" . ($result ? 'done' : 'failed') . '</b>', !$result);
+      self::logIt(($status > 0 ? 'Upgrade to' : 'Downgrade from') . " <b>$incomplete->version</b>: <b>" . ($result ? 'done' : 'failed') . '</b>', !$result);
 
       if (!$result) {
         break;
@@ -489,12 +498,12 @@ class Migrations extends \Prefab {
    *
    * @return array<string,string>
    */
-  function getMigrationCases($loadJustVersions = false) {
+  function getMigrationCases($version = null, $loadJustVersions = false) {
     $classes = array();
     if (file_exists($this->path) && is_dir($this->path)) {
       $directoryIterator = new \RecursiveDirectoryIterator($this->path);
       $iteratorIterator = new \RecursiveIteratorIterator($directoryIterator);
-      $fileList = new \RegexIterator($iteratorIterator, '/migration_case_((.*?)).php/');
+      $fileList = new \RegexIterator($iteratorIterator, '/migration_case_' . $version . '((.*?)).php/');
       foreach ($fileList as $file) {
         $classVersion = $this->getFileVersionNumber($file);
         if ($loadJustVersions) {
@@ -550,7 +559,7 @@ class Migrations extends \Prefab {
    * @param  bool $resetResult
    * @return void
    */
-  static function logIt($message, $error=false, $resetResult = false) {
+  static function logIt($message, $error = false, $resetResult = false) {
     $f3 = \Base::instance();
     if ($resetResult) {
       $f3->set('lastLog', array());
@@ -561,7 +570,7 @@ class Migrations extends \Prefab {
     if ($error) {
       $f3->set('lastLogError', $error);
     }
-    
+
     if (self::$log) {
       $logger = new \Log('migrations.log');
       $logger->write($f3->scrub($message));
@@ -587,6 +596,10 @@ class Migrations extends \Prefab {
         <title>' . $title . '</title>
         <style>
         body {background: #f5f5f5;margin: 1em;}
+        .targets li {float:left;list-style:none}
+        .targets li:not(:first-child):before{content:", "}
+        ul {padding:0;margin:0;display:inline-flex}
+        ul.targets:before {content:"Targets:";float:left;padding-right:5px}
         dt {margin-top: 0.7em;}
         dd {margin: 0;padding: 5px 0;}
         code {background: #cfcfcf;padding: 2px 5px;border-radius:3px;}
@@ -609,6 +622,16 @@ class Migrations extends \Prefab {
     </body>
     </html>
     ';
+
+    if ($this->f3->get('CLI')) {
+      if (!class_exists('\Html2Text\Html2Text')) {
+        return '\Html2Text\Html2Text is missing!';
+      }
+      $html = new \Html2Text\Html2Text($body);
+
+      return $html->getText();
+    }
+
     return $body;
   }
 }
@@ -628,12 +651,34 @@ class MigrationsModel extends \DB\SQL\Mapper {
    * @return void
    */
   public function __construct(\DB\SQL $db) {
-    $this->schema = new \DB\SQL\Schema($db);
     $this->tableName = 'migrations';
+
+    if (!class_exists('\DB\SQL\Schema')) {
+      print '\DB\SQL\Schema is missing!';
+      return;
+    }
+    $this->schema = new \DB\SQL\Schema($db);
 
     $this->createTable();
 
     parent::__construct($db, $this->tableName, null);
+  }
+
+
+  /**
+   * get current version of database according to last migration
+   *
+   * @return string
+   */
+  function dbVersion() {
+    $options = array(
+      'order' => 'created_at desc, id desc',
+      'limit' => 1
+    );
+
+    $lastCase = $this->find(array('result>?', 0), $options);
+
+    return isset($lastCase[0]->version) ? $lastCase[0]->version : '0';
   }
 
 
@@ -670,6 +715,19 @@ class MigrationsModel extends \DB\SQL\Mapper {
     }
     $this->result = $result;
     $this->update();
+  }
+
+
+  /**
+   * find specific case(records) by version
+   *
+   * @param  int $limit
+   * @param  bool $orderDesc
+   * @return array<object>
+   */
+  public function findCase($caseVersion = null) {
+    $options["limit"] = 1;
+    return $this->find(array("version=?", $caseVersion), $options);
   }
 
 

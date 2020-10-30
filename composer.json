@@ -17,6 +17,7 @@
 	},
 	"require": {
 		"bcosca/fatfree-core": "^3.6",
-		"ikkez/f3-schema-builder": "^2.2.4"
+		"ikkez/f3-schema-builder": "^2.2.4",
+		"html2text/html2text": "^4.3.1"
 	}
 }
