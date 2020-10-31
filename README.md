@@ -10,10 +10,11 @@ It's something like version control for the sql databases. Every time you have t
     - [First migration case](#first-migration-case)
     - [Migrate](#migrate)
     - [Config](#config)
+    - [Logging](#logging)
+    - [CLI mode](#cli-mode)
   - [Migration cases](#migration-cases)
     - [Filename](#filename)
     - [Content](#content)
-  - [Logging](#logging)
   - [License](#license)
 
 ## Installation
@@ -23,7 +24,10 @@ If you use composer, run the below code:
 ```
 composer require myaghobi/f3-migrations
 ```
-For manual installation, copy the content of `lib/` folder into your `lib/` folder. Also, `Migrations` use [Schema Builder](https://github.com/ikkez/f3-schema-builder), so you need to install it too.
+For manual installation:
+1. Copy the content of `lib/` folder into your `lib/` folder. 
+2. Install [Schema Builder](https://github.com/ikkez/f3-schema-builder) as mentioned in its documentation.
+3. Install Html2Text, by placing the `html2text.php` inside of a folder named `html2text` in your `lib/`.
 
 
 ## Operation and basic usage
@@ -72,6 +76,17 @@ PATH=db/migrations
 LOG=true
 ```
 The above config is the default, you can ignore/remove each one you don't need to change.
+
+### Logging
+
+You can find the logs of actions in `migrations.log` located in the [LOGS](http://fatfreeframework.com/quick-reference#LOGS) folder.
+
+### CLI mode
+
+Just run the below code:
+```
+php index.php /migrations
+```
 
 ## Migration cases
 
@@ -125,10 +140,6 @@ class CreateProductsTable extends \DB\SQL\MigrationCase {
 }
 ?>
 ```
-
-## Logging
-
-You can find the logs of actions in `migrations.log` located in the [LOGS](http://fatfreeframework.com/quick-reference#LOGS) folder.
 
 ## License
 
