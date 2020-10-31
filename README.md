@@ -27,7 +27,7 @@ composer require myaghobi/f3-migrations
 For manual installation:
 1. Copy the content of `lib/` folder into your `lib/` folder. 
 2. Install [Schema Builder](https://github.com/ikkez/f3-schema-builder) as mentioned in its documentation.
-3. Install Html2Text, by placing the `html2text.php` inside of a folder named `html2text` in your `lib/`.
+3. Install [Html2Text](https://github.com/mtibben/html2text), by placing the `html2text.php` inside of a folder named `html2text` in your `lib/`.
 
 
 ## Operation and basic usage
