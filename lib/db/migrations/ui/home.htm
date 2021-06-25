@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+  <title>Migrations</title>
+  <!-- Core theme CSS (includes Bootstrap)-->
+  <link href="{{$BASE}}/migrations/theme/css/styles.css" rel="stylesheet" />
+  <link href="{{$BASE}}/migrations/theme/css/app.css" rel="stylesheet" />
+  <script type="text/javascript">
+    var BASE = "{{@BASE}}";
+  </script>
+</head>
+<body>
+  <!-- Responsive navbar-->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+      <a class="navbar-brand" href="#">Migrations</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+      <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link {{@PARAMS[1]=='home'||!@PARAMS[1]?'active':''}}" href="{{$BASE}}/migrations/">Home</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+  <!-- Page content-->
+  <div class="container mt-5">
+    <div class="row">
+      <h1>Home</h1>
+    </div>
+    <div class="row">
+      <div class="col-md-12">
+
+        <check if="{{ !is_dir(@path) }}">
+          <true>
+            <dt>
+              <b>Make Path</b>
+              (<a id='action_makepath' title='Make the path folder if not exists' href='{{@BASE}}/migrations/makepath'>makepath</a>)
+            </dt>
+            <dd>
+              Use <code>makepath</code> to make the path folder of migration cases according to the config.<br>
+              Path: {{@path}}
+            </dd>
+          </true>
+        </check>
+
+        <check if="{{ @CLI }}">
+          <true>
+            <dt>
+              <b>Make Case</b>
+              (<a id='action_makecase' title='Make a migration case' href='{{@BASE}}/migrations/makecase/case_name'>makecase/case_name</a>)
+            </dt>
+            <dd>
+              Use <code>makecase</code> to make a new case with timestamp.
+            </dd>
+          </true>
+          <false>
+            <dt>
+              <b>Make Case</b>
+              (<a id='action_makecase' title='Make a migration case' href='#'>makecase</a>)
+            </dt>
+            <dd>
+              Use <code>makecase</code> to make a new case with timestamp.
+              <input type="text" class="form-control form-control-sm mt-1" id="makecase_input" placeholder="Name and/or a version number (e.g. usertable or user_1.0)" required>
+            </dd>
+          </false>
+        </check>
+
+        <dt>
+          <b>Migrate</b>
+          (<a id='action_migrate' title='Migrate to highest case' href='{{@BASE}}/migrations/migrate'>migrate</a>)
+        </dt>
+        <dd>
+          Use <code>migrate</code> to run the higher migration cases.<br>
+          Upgrade to:
+          <ul class='targets'>
+            <repeat group="{{@upgradeItems}}" value="{{@item}}">
+              <li>
+                <a title="Upgrade to {{@item->name.' '.@item->version.' '.$item->timestamp}}" 
+                  href="{{@BASE}}/migrations/migrate/{{@item->timestamp}}">
+                  {{@showByVersion && @item->version?@item->version:@item->timestamp}}
+                </a>
+              </li>
+            </repeat> 
+          </ul>
+        </dd>
+
+        <dt>
+          <b>Rollback</b>
+          (<a id='action_rollback' title='Rollback all cases' href='{{@BASE}}/migrations/rollback'>rollback</a>)
+        </dt>
+        <dd>
+          Use <code>rollback</code> to get one step back on your migrations/upgrades.<br>
+          Downgrade to:
+          <ul class='targets'>
+            <repeat group="{{@downgradeItems}}" value="{{@item}}">
+              <li>
+                <a title="Downgrade to {{@item->name.' '.@item->version.' '.$item->timestamp}}" 
+                  href="{{@BASE}}/migrations/rollback/{{@item->timestamp}}">
+                  {{@showByVersion && @item->version?@item->version:@item->timestamp}}
+                </a>
+              </li>
+            </repeat> 
+          </ul>
+        </dd>
+
+        <dt>
+          <b>Refresh</b>
+          (<a id='action_refresh' title='Rollback all cases' href='{{@BASE}}/migrations/refresh'>refresh</a>)
+        </dt>
+        <dd>
+          The <code>refresh</code> action will rollback all of your migrations and then executes the <code>migrate</code>.
+        </dd>
+
+        <dt>
+          <b>Fresh</b>
+          (<a id='action_fresh' title='Drop all & Migrate' href='{{@BASE}}/migrations/fresh'>fresh</a>)
+        </dt>
+        <dd>
+          The <code>fresh</code> action will drop all tables from the database and then executes the <code>migrate</code>.
+        </dd>
+
+        <dt>
+          <b>Reset</b>
+          (<a id='action_reset' title='Rollback all migrations/upgrades' href='{{@BASE}}/migrations/reset'>reset</a>)
+        </dt>
+        <dd>
+          The <code>reset</code> action will rollback all of migrations.
+        </dd>
+
+        <dt>
+          <b>Retry</b>
+          (<a id='action_retry' title='Repeat last action' href='{{@BASE}}/migrations/retry'>retry</a>)
+        </dt>
+        <dd>
+          The <code>retry</code> action will try to fix last failed action.
+        </dd>
+      </div>
+    </div>
+    <div class="row mt-3">
+      <div class="col-md-12">
+        Current Migration Case: {{trim(@db_current_details)?:"-"}}
+      </div>
+    </div>
+    <hr>
+    <div class="footer mb-3">
+      <a href="https://github.com/myaghobi/f3-migrations">Fat-Free Migrations {{@version}}</a>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap core JS-->
+<script src="{{$BASE}}/migrations/theme/js/bootstrap.bundle.min.js"></script>
+
+<script src="{{$BASE}}/migrations/theme/js/app.js"></script>
+</body>
+</html>
