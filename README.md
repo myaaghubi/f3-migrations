@@ -1,20 +1,17 @@
 # F3-Migrations
 F3-Migrations is a database helper plugin for the [Fat-Free Framework](http://github.com/bcosca/fatfree).
-It's something like version control for the sql databases. Every time you have to make some changes manually in your database, you can make a `MigrationCase` class in the `migrations` directory, and the `Migrations` will handle that.
+It's something like version control for the sql databases. Every time you have to make some changes manually in your database, you can make a `MigrationCase`, and the plugin will handle that.
 
 
 - [F3-Migrations](#f3-migrations)
   - [Installation](#installation)
   - [Operation and basic usage](#operation-and-basic-usage)
     - [Instantiate](#instantiate)
-    - [First migration case](#first-migration-case)
-    - [Migrate](#migrate)
+    - [First migration](#first-migration)
     - [Config](#config)
     - [Logging](#logging)
     - [CLI mode](#cli-mode)
-  - [Migration cases](#migration-cases)
-    - [Filename](#filename)
-    - [Content](#content)
+  - [Upgrade](#upgrade)
   - [License](#license)
 
 ## Installation
@@ -32,17 +29,19 @@ For manual installation:
 
 ## Operation and basic usage
 
-The plugin provides a simple web interface, consists of 3 routes that will auto add to your app:
+The plugin provides a simple web interface, consists of 4 routes that will auto add to your app:
 
 * `GET /migrations` displays the web interface
 * `GET /migrations/@action` triggers an action
 * `GET /migrations/@action/@target` specific target version for the action
+* `GET /migrations/theme/@type/@file` to retrive css/js files if you have stored the UI dir in non-web-accessible path
 
 Also, it will create a table in your database named `migrations` to handle migrations.
 
 ### Instantiate
 
-Instantiate the `Migrations` class before `f3->run()`. The plugin works if `DEBUG>=3`, otherwise, it goes disable because of security issues and to get no resource usage. Also to work with `Migrations` you need an active SQL connection:
+Instantiate the `Migrations` class before `f3->run()`. The plugin works if `DEBUG>=3`, otherwise, it goes disable because of security issues and to get no resource usage. 
+To work with `Migrations` you need an active SQL connection:
 
 ```php
 // require('vendor/autoload.php');
@@ -53,17 +52,16 @@ $f3=require('lib/base.php');
 // MySQL, SQLite, PostgreSQL & SQL Server are supported
 $db = new \DB\SQL('mysql:host=localhost;port=3306;dbname='.$DBName, $user, $pass);
 ...
-\DB\SQL\Migrations::instance($db);
+\DB\MIGRATIONS\Migrations::instance($db);
 $f3->run();
 ```
 
-### First migration case
+### First migration
 
-Make your first migration case by creating a file named `migration_case_1.0.0.php` in `lib/db/migrations`(default path) contains a class extended of `\DB\SQL\MigrationCase`.
-
-### Migrate
-
-Call `yourAppPublicUrl/migrations` in browser and use `migrate`.
+1. Make sure the path of your cases directory be exists and secure.
+2. Call `yourAppPublicUrl/migrations` in browser. 
+3. Use `makecase` action to make your first migration case.
+4. Call `migrate` action.
 
 
 ### Config
@@ -71,8 +69,10 @@ This plugin is configurable via config file:
 ``` ini
 [migrations]
 ENABLE=true
-; PATH relative to `lib/` folder
-PATH=db/migrations
+; PATH relative to `index.php`
+PATH=../migrations
+SHOW_BY_VERSOIN=true
+CASE_PREFIX=migration_case_
 LOG=true
 ```
 The above config is the default, you can ignore/remove each one you don't need to change.
@@ -88,61 +88,17 @@ Just run the below code:
 php index.php /migrations
 ```
 
-## Migration cases
+## Upgrade
 
-### Filename
+There is no auto-upgrade mode yet to upgrade from older version, so you need to do it manually. You can recreate the migration cases or for each case:
 
-The version of cases is a positive(non-zero) and not duplicated number with a max length of 14, such as a timestamp or version number(separated with dots).
-Also, you can add your description after the vesrion `migration_case_{version}_{description}.php`.
+1. Change case file name to migration_case_{file_name_and_or_versin_number}_{timestamp}.php. 
+2. Change case content to be extend of `\DB\MIGRATIONS\MigrationCase` instead of `\DB\SQL\MigrationCase`. 
 
-Some correct examples:
-```
-migration_case_1.0.0.php
-migration_case_1.0.0_producst_table.php
-migration_case_1603283078427_producst_table2.php
-```
-Some incorrect examples:
-```
-migration_producst_table_1.0.0.php
-migration_case_1_0_0.php
-migration_case_0.php
-migration_case.php
-```
-
-### Content
-
-An example of the content for a migration case:
-```php
-<?php
-// the class name can be duplicate
-class CreateProductsTable extends \DB\SQL\MigrationCase {
-    // this method will call on upgrade
-    public function up($f3, $db, $schema) {
-        // your cods here
-        // https://github.com/ikkez/f3-schema-builder#create-tables
-        $table = $schema->createTable('products');
-        $table->addColumn('title')->type($schema::DT_VARCHAR128);
-        $table->addColumn('description')->type($schema::DT_TEXT);
-        $table->build();
-
-        // return TRUE when the upgrade be successful
-        return true;
-    }
-
-    // this method will call on downgrade
-    public function down($f3, $db, $schema) {
-        // your cods here
-        $schema->dropTable('products');
-
-        // return TRUE when the downgrade be successful 
-        return true;
-    }
-}
-?>
-```
+Finally call `refresh` action.
 
 ## License
 
 You are allowed to use this plugin under the terms of the GNU General Public License version 3 or later.
 
-Copyright (C) 2020 Mohammad Yaghobi
+Copyright (C) 2021 Mohammad Yaghobi
