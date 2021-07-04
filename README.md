@@ -19,7 +19,7 @@ It's something like version control for the sql databases. Every time you have t
 If you use composer, run the below code:
 
 ```
-composer require myaghobi/f3-migrations
+composer require `myaghobi/f3-migrations:2.0.x-dev`
 ```
 For manual installation:
 1. Copy the content of `lib/` folder into your `lib/` folder. 
@@ -90,12 +90,12 @@ php index.php /migrations
 
 ## Upgrade
 
-There is no auto-upgrade mode yet to upgrade from older version, so you need to do it manually. You can recreate the migration cases or for each case:
+1. First update the plugin via composer or manually.
+2. Make sure the path of migration cases be exists because in this version the path is relative to `index.php`. 
+3. Make a backup of your DB and migration cases.
+4. Call `upgrademc` action to update the old migration cases.
 
-1. Change case file name to migration_case_{file_name_and_or_versin_number}_{timestamp}.php. 
-2. Change case content to be extend of `\DB\MIGRATIONS\MigrationCase` instead of `\DB\SQL\MigrationCase`. 
-
-Finally call `refresh` action.
+Finally call `fresh` action.
 
 ## License
 
