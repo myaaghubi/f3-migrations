@@ -45,6 +45,18 @@
           </true>
         </check>
 
+        <check if="{{ @upgradeAvailable }}">
+          <true>
+            <dt>
+              <b>Upgrade Migration Cases</b>
+              (<a id='action_makepath' title='Upgrade migration cases from older version to current' href='{{@BASE}}/migrations/upgrademc'>upgrademc</a>)
+            </dt>
+            <dd>
+              Use <code>upgrademc</code> to upgrade migration cases from older version to current.
+            </dd>
+          </true>
+        </check>
+
         <check if="{{ @CLI }}">
           <true>
             <dt>

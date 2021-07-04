@@ -2,10 +2,10 @@
 
 /**
  * @package F3 Migrations, MigrationsModel
- * @version 2.0.0
+ * @version 2.0.1
  * @link http://github.com/myaghobi/F3-Migrations Github
  * @author Mohammad Yaghobi <m.yaghobi.abc@gmail.com>
- * @copyright Copyright (c) 2020, Mohammad Yaghobi
+ * @copyright Copyright (c) 2021, Mohammad Yaghobi
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3
  */
 
@@ -248,9 +248,10 @@ class MigrationsModel extends \DB\SQL\Mapper {
     $table = @$this->schema->alterTable($this->tableName);
 
     if ($table && in_array('version', $table->getCols())) {
-      $table->addColumn('name')->type_varchar(100)->nullable(true)->after('timestamp');
       $table->renameColumn('version','timestamp');
       $table->renameColumn('stepId','step_id');
+      $table->build();
+      $table->addColumn('name')->type_varchar(100)->nullable(true)->after('timestamp');
       $table->build();
       Migrations::logIt("Migrations table has been upgraded.");
     }

@@ -2,10 +2,10 @@
 
 /**
  * @package F3 Migrations
- * @version 2.0.0
+ * @version 2.0.1
  * @link http://github.com/myaghobi/F3-Migrations Github
  * @author Mohammad Yaghobi <m.yaghobi.abc@gmail.com>
- * @copyright Copyright (c) 2020, Mohammad Yaghobi
+ * @copyright Copyright (c) 2021, Mohammad Yaghobi
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3
  */
 
@@ -16,7 +16,7 @@ use DB\MIGRATIONS\MigrationCaseItem;
 use DB\MIGRATIONS\MigrationCaseSample;
 
 class Migrations extends \Prefab {
-  public static $version = '2.0.0';
+  public static $version = '2.0.1';
   public static $path;
   public static $log;
   private $dbTimestamp;
@@ -129,6 +129,14 @@ class Migrations extends \Prefab {
   function showHome($f3) {
     $base = $f3->get('BASE');
 
+    //show upgrade action from older version to current
+    $upgradeAvailable = false;
+
+    $items_ = $this->getOldMigrationCaseItems();
+    if ($items_ && count($items_)>=0) {
+      $upgradeAvailable = true;
+    }
+
     // available migration items to upgrade
     $upgradeItems = $this->upgradeItems();
 
@@ -148,6 +156,7 @@ class Migrations extends \Prefab {
 
 
     $this->f3->set('path', self::$path);
+    $this->f3->set('upgradeAvailable', $upgradeAvailable);
     $this->f3->set('upgradeItems', $upgradeItems);
     $this->f3->set('downgradeItems', $downgradeItems);
     $this->f3->set('dbTimestamp', $this->dbTimestamp);
@@ -240,6 +249,9 @@ class Migrations extends \Prefab {
       case 'makecase':
       $this->makeCaseAction($target);
       break;
+      case 'upgrademc':
+      $this->upgradeMCAction($target);
+      break;
       default:
       self::logIt("Wrong Action!");
     }
@@ -271,7 +283,7 @@ class Migrations extends \Prefab {
    * @param  string $name
    * @return void
    */
-  function makeCaseAction($desc = "") {
+  function makeCaseAction($name = "") {
     if (empty($name)) {
       Migrations::logIt("The case name is required!", true);
       return;
@@ -418,6 +430,50 @@ class Migrations extends \Prefab {
 
 
   /**
+   * upgrade migration cases from older version to current version
+   *
+   * @return void
+   */
+  function upgradeMCAction() {
+    $items = $this->getOldMigrationCaseItems();
+    if (!$items || count($items)==0) {
+      self::logIt("There is no case matched old migration cases pattern.", true);
+      return;
+    }
+
+    // sort array by php version number
+    // equals to usort($a, 'version_compare');
+    usort($items, function ($a, $b) {
+      return version_compare($a->version, $b->version);
+    });
+
+    // current timestamp in ms
+    $tsCurrent = round(microtime(true) * 1000);
+    $result = array();
+    foreach ($items as $item) {
+      // change namespace
+      $item->content = str_replace('DB\SQL\MigrationCase', 'DB\MIGRATIONS\MigrationCase', $item->content);
+
+      // change class name
+      if (preg_match('/class\s+(\w+)\s+extends/', $item->content, $matches)) {
+        $item->content = str_replace($matches[0], 'class case_'.$this->getSafeVersionNumber($item->version).' extends', $item->content);
+      }
+
+      // save changes
+      file_put_contents($item->file, $item->content);
+
+      // rename the file
+      rename (
+        self::$path.'/migration_case_'.$item->version.'.php', 
+        self::$path.'/'.$this->casePrefix.$item->version.'_'.($tsCurrent++).'.php'
+      );
+    }
+
+    self::logIt("Upgrade done.", false);
+  }
+
+
+  /**
    * upgrade to $targetTimestamp by registering some records in the migrations table 
    *
    * @param  int $targetTimestamp
@@ -532,7 +588,9 @@ class Migrations extends \Prefab {
       if ($case->timestamp<= $this->dbTimestamp && (!$targetTimestamp || $targetTimestamp< $case->timestamp)) {
         $item = new MigrationCaseItem();
         $item->findByTimestamp($case->timestamp);
-        $result[] = $item;
+        if ($item->valid) {
+          $result[] = $item;
+        }
       }
     }
     return $result;
@@ -587,7 +645,7 @@ class Migrations extends \Prefab {
   
 
   /**
-   * get all migrations cases as MigrationCaseItem, get one if $timestamp specified
+   * get all migration cases as MigrationCaseItem, get one if $timestamp specified
    *
    * @param  int $timestamp
    * @return MigrationCaseItem[]
@@ -601,6 +659,35 @@ class Migrations extends \Prefab {
       foreach ($fileList as $file) {
         $item = new MigrationCaseItem($file);
         $classes[$item->timestamp] = $item;
+      }
+    }
+    return $classes;
+  }
+  
+
+  /**
+   * find all old migration cases as MigrationCaseItem
+   *
+   * @return MigrationCaseItem[]
+   */
+  function getOldMigrationCaseItems() {
+    $classes = array();
+    if (file_exists(self::$path) && is_dir(self::$path)) {
+      $directoryIterator = new \RecursiveDirectoryIterator(self::$path);
+      $iteratorIterator = new \RecursiveIteratorIterator($directoryIterator);
+      $fileList = new \RegexIterator($iteratorIterator, '/migration_case_(\d+((\.\d+)*)).php/');
+
+      foreach ($fileList as $file) {
+        preg_match('/migration_case_(\d+((\.\d+)*)).php/', $file, $matches);
+
+        $item = new MigrationCaseItem();
+        $item->file = $file;
+        $item->name = $matches[1];
+        $item->version = $matches[1];
+        $item->timestamp = $matches[1];
+        $item->content = file_get_contents($file);
+
+        $classes[$item->version] = $item;
       }
     }
     return $classes;
