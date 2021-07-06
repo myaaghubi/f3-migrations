@@ -5,8 +5,9 @@
 		"f3-migrations",
 		"fat-free-plugin",
 		"fat-free-framework",
-		"sql-database",
-		"database-migration"
+		"sql",
+		"database",
+		"migration"
 	],
 	"homepage": "https://github.com/myaghobi/f3-migrations",
 	"license": "GPL-3.0",
