@@ -19,7 +19,7 @@ It's something like version control for the sql databases. Every time you have t
 If you use composer, run the below code:
 
 ```
-composer require `myaghobi/f3-migrations:2.0.x-dev`
+composer require `myaghobi/f3-migrations`
 ```
 For manual installation:
 1. Copy the content of `lib/` folder into your `lib/` folder. 
@@ -34,7 +34,7 @@ The plugin provides a simple web interface, consists of 4 routes that will auto 
 * `GET /migrations` displays the web interface
 * `GET /migrations/@action` triggers an action
 * `GET /migrations/@action/@target` specific target version for the action
-* `GET /migrations/theme/@type/@file` to retrive css/js files if you have stored the UI dir in non-web-accessible path
+* `GET /migrations/theme/@type/@file` to retrive css/js files if you have stored the UI dir in non-web-accessible path (recommended)
 
 Also, it will create a table in your database named `migrations` to handle migrations.
 
@@ -91,7 +91,7 @@ php index.php /migrations
 ## Upgrade
 
 1. First update the plugin via composer or manually.
-2. Make sure the path of migration cases be exists because in this version the path is relative to `index.php`. 
+2. Now the path of migration cases is relative to `index.php`, so make sure it be exists. 
 3. Make a backup of your DB and migration cases.
 4. Call `upgrademc` action to update the old migration cases.
 
