@@ -19,7 +19,7 @@ It's something like version control for the sql databases. Every time you have t
 If you use composer, run the below code:
 
 ```
-composer require `myaghobi/f3-migrations`
+composer require myaghobi/f3-migrations
 ```
 For manual installation:
 1. Copy the content of `lib/` folder into your `lib/` folder. 
