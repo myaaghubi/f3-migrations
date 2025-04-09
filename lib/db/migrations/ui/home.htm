@@ -70,7 +70,7 @@
           <false>
             <dt>
               <b>Make Case</b>
-              (<a id='action_makecase' title='Make a migration case' href='#'>makecase</a>)
+              (<a id='action_makecase' title='Make a migration case' href='#make_case'>makecase</a>)
             </dt>
             <dd>
               Use <code>makecase</code> to create a new migration case with a timestamp.
@@ -85,13 +85,13 @@
         </dt>
         <dd>
           Use <code>migrate</code> to execute the highest migration cases.<br>
-          Upgrade to:
+          Upgrade to: <sub>{{empty(@upgradeItems)?'-':''}}</sub>
           <ul class='targets'>
             <repeat group="{{@upgradeItems}}" value="{{@item}}">
               <li>
-                <a title="Upgrade to {{@item->name.' '.@item->version.' '.$item->timestamp}}" 
+                <a title="Upgrade to {{@item->name.''.@item->version.' '.$item->timestamp}}" 
                   href="{{@BASE}}/migrations/migrate/{{@item->timestamp}}">
-                  {{@showByVersion && @item->version?@item->version:@item->timestamp}}
+                  {{@showByVersion && @item->version?@item->version:@item->name}}
                 </a>
               </li>
             </repeat> 
@@ -104,13 +104,13 @@
         </dt>
         <dd>
           Use <code>rollback</code> to revert one step back on your migrations/upgrades.<br>
-          Downgrade to:
+          Downgrade to: <sub>{{empty(@downgradeItems)?'-':''}}</sub>
           <ul class='targets'>
             <repeat group="{{@downgradeItems}}" value="{{@item}}">
               <li>
-                <a title="Downgrade to {{@item->name.' '.@item->version.' '.$item->timestamp}}" 
+                <a title="Downgrade to {{@item->name.''.@item->version.' '.$item->timestamp}}" 
                   href="{{@BASE}}/migrations/rollback/{{@item->timestamp}}">
-                  {{@showByVersion && @item->version?@item->version:@item->timestamp}}
+                  {{@showByVersion && @item->version?@item->version:@item->name}}
                 </a>
               </li>
             </repeat> 
