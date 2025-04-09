@@ -21,7 +21,6 @@ class MigrationCaseItem
     public $content;
     public $valid;
 
-    private $casePrefix;
     private $f3;
 
 
@@ -34,8 +33,6 @@ class MigrationCaseItem
     function __construct($path = null)
     {
         $this->f3 = \Base::instance();
-
-        $this->casePrefix = $this->f3->get('migrations.CASE_PREFIX') ?: 'migration_case_';
 
         $this->valid = false;
         $this->parsByFile($path);
@@ -59,11 +56,18 @@ class MigrationCaseItem
         $this->file = $path;
 
         $fileName = pathinfo($path)['basename'];
-        preg_match('/' . $this->casePrefix . '(.*?)(\d+(\.\d+)*)?_(\d+).php/', $fileName, $matches);
+        preg_match('/(.*?)_migration_case_(\d+).php/', $fileName, $matches);
         if ($matches) {
             $this->name = $matches[1];
-            $this->version = $matches[2];
-            $this->timestamp = $matches[4];
+            // $this->version = $matches[2];
+            $this->timestamp = $matches[2];
+        } else {
+            preg_match('/(.*?)(\d+(\.\d+)*)?_(\d+).php/', $fileName, $matches);
+            if ($matches) {
+                $this->name = $matches[1];
+                $this->version = $matches[2];
+                $this->timestamp = $matches[4];
+            }
         }
 
         $fileContent = file_get_contents($path);
@@ -87,7 +91,7 @@ class MigrationCaseItem
     {
         $this->valid = false;
 
-        $result = glob(Migrations::$path . $this->casePrefix . '*_' . $timestamp . '.php');
+        $result = glob(Migrations::$path . '*_migration_case_' . $timestamp . '.php');
         if (count($result) == 1) {
             $this->parsByFile($result[0]);
         }

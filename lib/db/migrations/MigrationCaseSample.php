@@ -9,19 +9,33 @@
  */
 
 namespace DB\MIGRATIONS;
-// the class name can be duplicate
+
+// Class names can be duplicated
 class MigrationCaseSample extends \DB\MIGRATIONS\MigrationCase
 {
+    private string $tableName = '';
+
     // this method will call on upgrade
     public function up($f3, $db, $schema)
     {
         // your cods here
 
         // e.g. https://github.com/ikkez/f3-schema-builder#create-tables
-        // $table = $schema->createTable('products');
+        $table = $schema->createTable($this->tableName);
         // $table->addColumn('title')->type($schema::DT_VARCHAR128);
         // $table->addColumn('description')->type($schema::DT_TEXT);
-        // $table->build();
+        $table->build();
+
+        // or 
+        // $db->exec("
+        // CREATE TABLE :tableName (
+        //     id INT AUTO_INCREMENT PRIMARY KEY,
+        //     title VARCHAR(100),
+        //     description VARCHAR(100),
+        //     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        //     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        // );
+        // ", ['tableName' => $this->tableName]);
 
         // return TRUE when the upgrade be successful
         return true;
@@ -31,7 +45,7 @@ class MigrationCaseSample extends \DB\MIGRATIONS\MigrationCase
     public function down($f3, $db, $schema)
     {
         // your cods here
-        // $schema->dropTable('products');
+        $schema->dropTable($this->tableName);
 
         // return TRUE when the downgrade be successful 
         return true;

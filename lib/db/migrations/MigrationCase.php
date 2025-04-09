@@ -10,8 +10,10 @@
 
 namespace DB\MIGRATIONS;
 
-class MigrationCase
+class MigrationCase extends \stdClass
 {
+    private string $tableName = '';
+
     /**
      * this method will call on upgrade
      *

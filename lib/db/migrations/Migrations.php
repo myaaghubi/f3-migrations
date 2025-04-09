@@ -22,7 +22,6 @@ class Migrations extends \Prefab
     private $dbTimestamp;
     private $showTargets;
     private $showByVersion;
-    private $casePrefix;
     private $model;
     private $db;
     private $f3;
@@ -38,7 +37,7 @@ class Migrations extends \Prefab
     {
         $this->f3 = \Base::instance();
 
-        if ($this->f3->get('DEBUG') < ($this->f3->get('migrations.ENABLE_DEBUG_LEVEL')??3)) {
+        if ($this->f3->get('DEBUG') < ($this->f3->get('migrations.ENABLE_DEBUG_LEVEL') ?? 3)) {
             return;
         }
 
@@ -59,8 +58,6 @@ class Migrations extends \Prefab
         $this->showByVersion = $this->f3->get('migrations.SHOW_BY_VERSOIN') ?: true;
         $this->f3->set('showByVersion', $this->showByVersion);
 
-        $this->casePrefix = $this->f3->get('migrations.CASE_PREFIX') ?: 'migration_case_';
-
         $this->db = $db;
 
         $this->model = new MigrationsModel($this->db);
@@ -70,7 +67,7 @@ class Migrations extends \Prefab
             $this->f3->set('db_current_details', "none");
             $this->dbTimestamp = 0;
         } else {
-            $this->f3->set('db_current_details', $lastCase->timestamp . " " . $lastCase->name . " " . $lastCase->created_at);
+            $this->f3->set('db_current_details', "$lastCase->name ($lastCase->timestamp) $lastCase->created_at");
             $this->dbTimestamp = $lastCase->timestamp;
         }
 
@@ -136,8 +133,6 @@ class Migrations extends \Prefab
      */
     function showHome($f3)
     {
-        $base = $f3->get('BASE');
-
         //show upgrade action from older version to current
         $upgradeAvailable = false;
 
@@ -211,8 +206,8 @@ class Migrations extends \Prefab
         $action = $f3->get('PARAMS.action');
         $target = $f3->get('PARAMS.target');
         self::logIt("Action: <b>$action</b> $target", false, true);
-
         $incomplete = $this->model->incompleteCases(1, false);
+
         if (count($incomplete) > 0 && $action != 'retry' && $action != 'fresh' && $action != 'make') {
             self::logIt("You have a failed case! fix it and use <code>retry</code>.", true);
 
@@ -306,15 +301,15 @@ class Migrations extends \Prefab
         $name = strtolower($name);
 
         if (!file_exists(self::$path)) {
-            Migrations::logIt("The <code>PATH</code> of the cases does not exists!", true);
+            Migrations::logIt("The <code>PATH</code> of the cases does not exists!<br>" . self::$path, true);
             return;
         }
 
-        $className = str_replace('.', "_", $name);
+        $className = ucfirst(str_replace('.', "_", $name)) . 'MigrationCase';
 
         // timestamp in ms
-        $timestamp = round(microtime(true) * 1000);
-        $fileName = self::$path . $this->casePrefix . $name . '_' . $timestamp . '.php';
+        $timestamp = $this->getTimestamp();
+        $fileName = self::$path . $name . '_migration_case_' . $timestamp . '.php';
 
         // if (file_exists($fileName)) {
         //   Migrations::logIt("A case with entered version already exists!", true);
@@ -331,6 +326,17 @@ class Migrations extends \Prefab
             Migrations::logIt("Failed to create new case!", true);
         else
             Migrations::logIt("The new case has been created.", false);
+    }
+
+
+    /**
+     * create the timestamp
+     *
+     * @return int
+     */
+    function getTimestamp()
+    {
+        return round(microtime(true) * 1000);
     }
 
 
@@ -468,7 +474,7 @@ class Migrations extends \Prefab
         });
 
         // current timestamp in ms
-        $tsCurrent = round(microtime(true) * 1000);
+        $tsCurrent = $this->getTimestamp();
         $result = array();
         foreach ($items as $item) {
             // change namespace
@@ -485,7 +491,7 @@ class Migrations extends \Prefab
             // rename the file
             rename(
                 self::$path . '/migration_case_' . $item->version . '.php',
-                self::$path . '/' . $this->casePrefix . $item->version . '_' . ($tsCurrent++) . '.php'
+                self::$path . '/case_' . $item->version . '_' . ($tsCurrent++) . '.php'
             );
         }
 
@@ -522,6 +528,7 @@ class Migrations extends \Prefab
             foreach ($items as $item) {
                 // all of migrations with higher timestamp than current timestamp of db
                 if ($targetTimestamp >= $item->timestamp) {
+                    // TODO: uncomment it for release
                     $this->model->addCase($item->timestamp, $item->name . $item->version, 1, $stepId);
                 }
             }
@@ -540,6 +547,7 @@ class Migrations extends \Prefab
     function upgradeItems($targetTimestamp = null)
     {
         $items = $this->getMigrationCaseItems(null);
+
         // sort array by timestamp
         usort($items, function ($a, $b) {
             return $a->timestamp >= $b->timestamp;
@@ -548,7 +556,7 @@ class Migrations extends \Prefab
         $result = array();
         foreach ($items as $item) {
             // all items with higher timestamp than the current timestamp of db
-            if ($item->timestamp > $this->dbTimestamp && (!$targetTimestamp || $targetTimestamp >= $item->timestamp)) {
+            if ($item->timestamp > $this->dbTimestamp && ($targetTimestamp == null || $targetTimestamp >= $item->timestamp)) {
                 $item_ = new MigrationCaseItem();
                 $item_->findByTimestamp($item->timestamp);
                 $result[] = $item_;
@@ -645,9 +653,17 @@ class Migrations extends \Prefab
                 return;
             }
             $item = $items[$incomplete->timestamp];
-            $methodName = $this->casePrefix . $item->name . $this->getSafeVersionNumber($item->version) . $item->timestamp;
+            $methodName = $item->name . $this->getSafeVersionNumber($item->version) . $item->timestamp;
 
-            eval(" \$this->$methodName=" . str_replace(['<?php', '?>'], '', $item->content));
+            $content = str_replace(['<?php', '?>'], '', $item->content);
+
+            ob_start();
+            $result = 
+            eval(" \$this->{$methodName}=$content");
+            if ('' !== $error = ob_get_clean()) {
+                var_dump($result);
+                var_dump($error);
+            }
 
             $schema = new \DB\SQL\Schema($this->db);
             if ($status > 0) {
@@ -681,8 +697,11 @@ class Migrations extends \Prefab
         if (file_exists(self::$path) && is_dir(self::$path)) {
             $directoryIterator = new \RecursiveDirectoryIterator(self::$path);
             $iteratorIterator = new \RecursiveIteratorIterator($directoryIterator);
-            $fileList = new \RegexIterator($iteratorIterator, '/' . $this->casePrefix . '(.*?)_' . ($timestamp ?: '(\d+)') . '.php/');
-            foreach ($fileList as $file) {
+
+            $regex = '/users_migration_case_' . ($timestamp ?? '(\d+)') . '.php/';
+            $filesList = new \RegexIterator($iteratorIterator, $regex);
+
+            foreach ($filesList as $file) {
                 $item = new MigrationCaseItem($file);
                 $classes[$item->timestamp] = $item;
             }
@@ -760,7 +779,8 @@ class Migrations extends \Prefab
     {
         $fileName = pathinfo($path)['filename'];
         $version = 0;
-        preg_match('/' . $this->casePrefix . '(\d+((\.\d+)*))?/', $fileName, $matches);
+        preg_match('/.*?_migration_case_(\d+((\.\d+)*))?.php/', $fileName, $matches);
+
         if ($matches) {
             $version = $matches[1];
         }
