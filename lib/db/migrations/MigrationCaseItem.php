@@ -16,6 +16,7 @@ class MigrationCaseItem
 {
     public $file;
     public $name;
+    public $className;
     public $version;
     public $timestamp;
     public $content;
@@ -73,6 +74,7 @@ class MigrationCaseItem
         $fileContent = file_get_contents($path);
 
         if (preg_match('/class\s+(\w+)\s+extends/', $fileContent, $matches)) {
+            $this->className = $matches[1];
             $str = str_replace($matches[0], 'new class() extends', $fileContent) . ';';
             $this->content = $str;
         }

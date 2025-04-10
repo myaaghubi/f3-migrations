@@ -53,7 +53,7 @@ class MigrationsModel extends \DB\SQL\Mapper
 
         $lastCase = $this->find(array('result>?', 0), $options);
 
-        return $lastCase[0]->timestamp ?: '0';
+        return !empty($lastCase[0]->timestamp) ?: '0';
     }
 
 

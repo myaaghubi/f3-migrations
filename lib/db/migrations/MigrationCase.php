@@ -12,7 +12,7 @@ namespace DB\MIGRATIONS;
 
 class MigrationCase extends \stdClass
 {
-    private string $tableName = '';
+    public static string $tableName = '';
 
     /**
      * this method will call on upgrade
@@ -22,7 +22,7 @@ class MigrationCase extends \stdClass
      * @param  object $schema
      * @return bool
      */
-    public function up($f3, $db, $schema)
+    public static function up($f3, $db, $schema)
     {
         // your cods here
 
@@ -39,7 +39,7 @@ class MigrationCase extends \stdClass
      * @param  object $schema
      * @return bool
      */
-    public function down($f3, $db, $schema)
+    public static function down($f3, $db, $schema)
     {
         // your cods here
 

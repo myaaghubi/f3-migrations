@@ -136,10 +136,11 @@ class Migrations extends \Prefab
         //show upgrade action from older version to current
         $upgradeAvailable = false;
 
-        $items_ = $this->getOldMigrationCaseItems();
-        if ($items_ && count($items_) >= 0) {
-            $upgradeAvailable = true;
-        }
+        // not available now!
+        // $items_ = $this->getOldMigrationCaseItems();
+        // if ($items_ && count($items_) >= 0) {
+        //     $upgradeAvailable = true;
+        // }
 
         // available migration items to upgrade
         $upgradeItems = $this->upgradeItems();
@@ -653,26 +654,18 @@ class Migrations extends \Prefab
                 return;
             }
             $item = $items[$incomplete->timestamp];
-            $methodName = $item->name . $this->getSafeVersionNumber($item->version) . $item->timestamp;
 
-            $content = str_replace(['<?php', '?>'], '', $item->content);
+            $result = $this->runCase($item, $status);
 
-            ob_start();
-            $result = 
-            eval(" \$this->{$methodName}=$content");
-            if ('' !== $error = ob_get_clean()) {
-                var_dump($result);
-                var_dump($error);
+            $log = ($status > 0 ? 'Upgrade to' : 'Downgrade from');
+            $log .= " <b>$item->className $incomplete->timestamp</b>: ";
+            $log .= "<b>" . ($result === true ? 'done' : 'failed') . "</b>";
+
+            if ($result !== true) {
+                $log .= "<br>$result";
             }
 
-            $schema = new \DB\SQL\Schema($this->db);
-            if ($status > 0) {
-                $result = @$this->$methodName->up($this->f3, $this->db, $schema);
-            } else if ($status < 0) {
-                $result = @$this->$methodName->down($this->f3, $this->db, $schema);
-            }
-
-            self::logIt(($status > 0 ? 'Upgrade to' : 'Downgrade from') . " <b>$incomplete->timestamp</b>: <b>" . ($result ? 'done' : 'failed') . '</b>', !$result);
+            self::logIt($log, $result !== true);
 
             if (!$result) {
                 break;
@@ -682,6 +675,30 @@ class Migrations extends \Prefab
 
             $this->dbTimestamp = $this->model->timestamp();
         }
+    }
+
+
+    /**
+     * Run the case
+     *
+     * @param  MigrationCaseItem $item
+     * @param  int $status
+     * @return boolean|string
+     */
+    function runCase($item, $status)
+    {
+        $schema = new \DB\SQL\Schema($this->db);
+        $result = false;
+
+        require_once($item->file);
+
+        if ($status > 0) {
+            $result = $item->className::up($this->f3, $this->db, $schema);
+        } else if ($status < 0) {
+            $result = $item->className::down($this->f3, $this->db, $schema);
+        }
+
+        return $result;
     }
 
 
