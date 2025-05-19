@@ -1,7 +1,9 @@
 # F3-Migrations
 
 F3-Migrations is a database helper plugin for the [Fat-Free Framework](http://github.com/bcosca/fatfree).
-It's something like version control for the sql databases. Every time you have to make some changes manually in your database, you can make a `MigrationCase`, and the plugin will handle that.
+It's similar to version control for `SQL` databases. Whenever you need to make changes to your database manually, you can create a `MigrationCase`, and the plugin will handle it.
+
+Tested on `php 8.2`, and `fatfree 3.9`. Not sure about lower versions.
 
 Tested on `php 8.4`, `fatfree 3.9`
 
@@ -28,7 +30,7 @@ For manual installation:
 
 1. Copy the content of `lib/` folder into your `lib/` folder.
 2. Install [Schema Builder](https://github.com/ikkez/f3-schema-builder) as mentioned in its documentation.
-3. Install [Html2Text](https://github.com/mtibben/html2text), by placing the `html2text.php` inside of a folder named `html2text` in your `lib/`.
+3. Install [Html2Text](https://github.com/mtibben/html2text), by placing the `html2text.php` in `lib/html2text/`.
 
 ## Operation and basic usage
 
@@ -37,13 +39,13 @@ The plugin provides a simple interface, consists of 4 routes that will auto add 
 - `GET /migrations` displays the web interface
 - `GET /migrations/@action` triggers an action
 - `GET /migrations/@action/@target` specific target version for the action
-- `GET /migrations/theme/@type/@file` to retrive css/js files if you have stored the UI dir in non-web-accessible path (recommended)
+- `GET /migrations/theme/@type/@file` to retrieve css/js files if you have stored the UI dir in non-web-accessible path (recommended)
 
-Also, it will create a table in your database named `migrations` to handle migrations.
+This extension will create a table in your database named `migrations` to handle migrations.
 
 ### Instantiation
 
-Instantiate the `Migrations` class before calling `f3->run()`. The plugin operates if `DEBUG >= 3`; otherwise, it is disabled for security reasons and to minimize resource usage. 
+Instantiate the `Migrations` class before calling `$f3->run()`. The plugin operates if `DEBUG >= 3`; otherwise, it is disabled for security reasons and to minimize hardware resource usage. 
 
 To work with `Migrations`, you must have an active SQL connection.
 
@@ -77,7 +79,7 @@ This plugin can be configured through its configuration file.
 ENABLE=true
 ; By default it is enable for the DEBUG>=3
 ENABLE_DEBUG_LEVEL=3
-; PATH is relative to your index.php file
+; PATH is relative to your public/index.php file
 PATH=../app/migrations
 SHOW_BY_VERSOIN=true
 LOG=true

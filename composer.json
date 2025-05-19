@@ -1,6 +1,6 @@
 {
 	"name": "myaghobi/f3-migrations",
-	"description": "A database helper plugin for the Fat-Free framework.",
+	"description": "A database helper plugin designed for the PHP Fat-Free Framework.",
 	"keywords": [
 		"f3-migrations",
 		"fat-free-plugin",
@@ -9,7 +9,7 @@
 		"database",
 		"migration"
 	],
-	"homepage": "https://github.com/myaghobi/f3-migrations",
+	"homepage": "https://github.com/myaaghubi/f3-migrations",
 	"license": "GPL-3.0",
 	"autoload": {
 		"classmap": [
