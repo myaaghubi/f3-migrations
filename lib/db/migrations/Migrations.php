@@ -715,7 +715,7 @@ class Migrations extends \Prefab
             $directoryIterator = new \RecursiveDirectoryIterator(self::$path);
             $iteratorIterator = new \RecursiveIteratorIterator($directoryIterator);
 
-            $regex = '/users_migration_case_' . ($timestamp ?? '(\d+)') . '.php/';
+            $regex = '/(.+)_migration_case_' . ($timestamp ?? '(\d+)') . '.php/';
             $filesList = new \RegexIterator($iteratorIterator, $regex);
 
             foreach ($filesList as $file) {
