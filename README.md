@@ -3,10 +3,12 @@
 F3-Migrations is a database helper plugin for the [Fat-Free Framework](http://github.com/bcosca/fatfree).
 It's something like version control for the sql databases. Every time you have to make some changes manually in your database, you can make a `MigrationCase`, and the plugin will handle that.
 
+Tested on `php 8.4`, `fatfree 3.9`
+
 - [F3-Migrations](#f3-migrations)
   - [Installation](#instantiation)
   - [Operation and basic usage](#operation-and-basic-usage)
-    - [Instantiate](#instantiate)
+    - [Instantiate](#instantiation)
     - [First migration](#first-migration)
     - [Config](#config)
     - [Logging](#logging)
