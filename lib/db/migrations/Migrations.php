@@ -551,7 +551,7 @@ class Migrations extends \Prefab
 
         // sort array by timestamp
         usort($items, function ($a, $b) {
-            return $a->timestamp >= $b->timestamp;
+            return $a->timestamp <=> $b->timestamp;
         });
 
         $result = array();
