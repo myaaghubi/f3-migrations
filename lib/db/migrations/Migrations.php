@@ -4,7 +4,7 @@
  * @package F3 Migrations
  * @link http://github.com/myaaghubi/F3-Migrations Github
  * @author Mohammad Yaaghubi <m.yaaghubi.abc@gmail.com>
- * @copyright Copyright (c) 2024, Mohammad Yaaghubi
+ * @copyright Copyright (c) 2025, Mohammad Yaaghubi
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3
  */
 
@@ -298,15 +298,22 @@ class Migrations extends \Prefab
             return;
         }
 
-        $name = preg_replace('/[^a-zA-Z0-9_.]/', '', $name);
-        $name = strtolower($name);
-
         if (!file_exists(self::$path)) {
             Migrations::logIt("The <code>PATH</code> of the cases does not exists!<br>" . self::$path, true);
             return;
         }
 
-        $className = ucfirst(str_replace('.', "_", $name)) . 'MigrationCase';
+        $name = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $name));
+        if (is_numeric(substr($name, 0, 1))) {
+            $name = 'c'.$name;
+        }
+
+        $names = explode('_', $name);
+        $className = "";
+        foreach($names as $item) {
+            $className.=ucfirst($item);
+        }
+        $className .= 'MigrationCase';
 
         // timestamp in ms
         $timestamp = $this->getTimestamp();
@@ -321,6 +328,7 @@ class Migrations extends \Prefab
         $content = file_get_contents($func->getFileName());
 
         $content = str_replace("namespace " . __NAMESPACE__ . ";", "", $content);
+        $content = str_replace("%table_name%", strtolower($name), $content);
         $content = str_replace('MigrationCaseSample', $className, $content);
 
         if (file_put_contents($fileName, $content) === false)

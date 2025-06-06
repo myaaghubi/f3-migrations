@@ -4,7 +4,7 @@
  * @package F3 Migrations, MigrationsModel
  * @link http://github.com/myaaghubi/F3-Migrations Github
  * @author Mohammad Yaaghubi <m.yaaghubi.abc@gmail.com>
- * @copyright Copyright (c) 2024, Mohammad Yaaghubi
+ * @copyright Copyright (c) 2025, Mohammad Yaaghubi
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3
  */
 
