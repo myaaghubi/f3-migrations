@@ -16,16 +16,17 @@ use DB\MIGRATIONS\MigrationCaseSample;
 
 class Migrations extends \Prefab
 {
-    public static $version = '2.1.0';
-    public static $path;
-    public static $log;
+    public static $version = '2.2.0';
+    private static $path;
+    private static $config;
+    private static $configDefault;
+    private static $lastLog;
+    private static $lastLogError;
     private $dbTimestamp;
-    private $showTargets;
-    private $showByVersion;
+    private $dbCurrentStatus;
     private $model;
     private $db;
     private $f3;
-
 
     /**
      * Migrations constructor
@@ -37,45 +38,74 @@ class Migrations extends \Prefab
     {
         $this->f3 = \Base::instance();
 
-        if ($this->f3->get('DEBUG') < ($this->f3->get('migrations.ENABLE_DEBUG_LEVEL') ?? 3)) {
+        self::$configDefault = [
+            'ENABLE' => false,
+            'ENABLE_DEBUG_LEVEL' => 3,
+            'LOG' => true,
+            'PATH' => '../migrations',
+            'PATH_ABSOLUTE' => '',
+            'SHOW_BY_VERSOIN' => true,
+        ];
+
+        if (self::config('ENABLE') != true) {
             return;
         }
 
-        if ($this->f3->get('migrations.ENABLE') === false) {
+        if ($this->f3->get('DEBUG') < self::config('ENABLE_DEBUG_LEVEL')) {
             return;
         }
 
-        self::$log = $this->f3->get('migrations.LOG') ?: true;
-
-        // relative to index.php
-        self::$path = dirname($this->f3->get('SERVER.SCRIPT_FILENAME')) . '/' .
-            ($this->f3->get('migrations.PATH') ?: '../migrations')
-            . '/';
-
-        $this->showTargets = $this->f3->get('migrations.SHOW_TARGETS') ?: true;
-
-        // show targets by version number if the version number mentioned in the name of migration cases
-        $this->showByVersion = $this->f3->get('migrations.SHOW_BY_VERSOIN') ?: true;
-        $this->f3->set('showByVersion', $this->showByVersion);
+        self::$path = self::path();
 
         $this->db = $db;
 
         $this->model = new MigrationsModel($this->db);
 
         $lastCase = $this->model->getLastCase();
-        if ($lastCase == null) {
-            $this->f3->set('db_current_details', "none");
-            $this->dbTimestamp = 0;
-        } else {
-            $this->f3->set('db_current_details', "$lastCase->name ($lastCase->timestamp) $lastCase->created_at");
-            $this->dbTimestamp = $lastCase->timestamp;
-        }
-
-        $this->f3->set('version', self::$version);
+        $this->dbCurrentStatus = $lastCase ? "$lastCase->name ($lastCase->timestamp) $lastCase->created_at" : '';
+        $this->dbTimestamp = $lastCase ? $lastCase->timestamp : 0;
 
         $this->checkUI();
 
         $this->initRoutes();
+    }
+
+
+    /**
+     * get the config
+     *
+     * @param  object $key
+     * @return mixed
+     */
+    static function config($key)
+    {
+        if (empty(self::$config)) {
+            self::$config = \Base::instance()->get('migrations') ?? self::$configDefault;
+        }
+
+        if (empty(self::$config[$key])) {
+            return self::$config[$key] = self::$configDefault[$key];
+        }
+
+        return self::$config[$key];
+    }
+
+
+    /**
+     * get the path or path absolute
+     *
+     * @return string
+     */
+    static function path()
+    {
+        $path = self::config('PATH_ABSOLUTE');
+        if (empty($path)) {
+            $path = rtrim(self::config('PATH'), '/');
+            // relative to index.php
+            $path = dirname(\Base::instance()->get('SERVER.SCRIPT_FILENAME')) . '/' . $path . '/';
+        }
+
+        return $path;
     }
 
 
@@ -133,15 +163,6 @@ class Migrations extends \Prefab
      */
     function showHome($f3)
     {
-        //show upgrade action from older version to current
-        $upgradeAvailable = false;
-
-        // not available now!
-        // $items_ = $this->getOldMigrationCaseItems();
-        // if ($items_ && count($items_) >= 0) {
-        //     $upgradeAvailable = true;
-        // }
-
         // available migration items to upgrade
         $upgradeItems = $this->upgradeItems();
 
@@ -159,15 +180,17 @@ class Migrations extends \Prefab
             $downgradeItems[] = $carryCase;
         }
 
-
-        $this->f3->set('path', self::$path);
-        $this->f3->set('upgradeAvailable', $upgradeAvailable);
-        $this->f3->set('upgradeItems', $upgradeItems);
-        $this->f3->set('downgradeItems', $downgradeItems);
-        $this->f3->set('dbTimestamp', $this->dbTimestamp);
-        $this->f3->set('version', self::$version);
-
-        $this->serve("home.htm");
+        $this->serve("home.htm", [
+            'path' => self::$path,
+            'showByVersion' => self::config('SHOW_BY_VERSOIN'),
+            'upgradeItems' => $upgradeItems,
+            'downgradeItems' => $downgradeItems,
+            'dbTimestamp' => $this->dbTimestamp,
+            'dbCurrentStatus' => $this->dbCurrentStatus,
+            'version' => self::$version,
+            'CLI' => $this->f3->get('CLI'),
+            'BASE' => $this->f3->get('BASE'),
+        ]);
     }
 
 
@@ -175,11 +198,12 @@ class Migrations extends \Prefab
      * serve the output
      *
      * @param string $file
+     * @param array $params
      * @return void
      */
-    function serve($file)
+    function serve($file, $params = [])
     {
-        $template = \Template::instance()->render('migrations/' . $file);
+        $template = \Template::instance()->render('migrations/' . $file, 'text/html', $params);
 
         if (!$this->f3->get('CLI')) {
             print $template;
@@ -204,8 +228,9 @@ class Migrations extends \Prefab
      */
     function doIt($f3)
     {
-        $action = $f3->get('PARAMS.action');
-        $target = $f3->get('PARAMS.target');
+        $params = $f3->get('PARAMS');
+        $action = $params['action']??'';
+        $target = $params['target']??'';
         self::logIt("Action: <b>$action</b> $target", false, true);
         $incomplete = $this->model->incompleteCases(1, false);
 
@@ -227,7 +252,14 @@ class Migrations extends \Prefab
             }
             self::logIt("Details => case timestamp: <b>$timestamp</b>, status: <b>$status</b>, stepId: <b>$stepId</b>, DateTime: <b>$datetime</b>", true);
 
-            $this->serve("result.htm");
+            $this->serve("result.htm", [
+                'PARAMS' => $params,
+                'version' => self::$version,
+                'lastLog' => self::$lastLog,
+                'lastLogError' => self::$lastLogError,
+                'CLI' => $this->f3->get('CLI'),
+                'BASE' => $this->f3->get('BASE'),
+            ]);
             return;
         }
 
@@ -263,7 +295,14 @@ class Migrations extends \Prefab
                 self::logIt("Wrong Action!");
         }
 
-        $this->serve("result.htm");
+        $this->serve("result.htm", [
+            'PARAMS' => $params,
+            'version' => self::$version,
+            'lastLog' => self::$lastLog,
+            'lastLogError' => self::$lastLogError,
+            'CLI' => $this->f3->get('CLI'),
+            'BASE' => $this->f3->get('BASE'),
+        ]);
     }
 
 
@@ -305,13 +344,13 @@ class Migrations extends \Prefab
 
         $name = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $name));
         if (is_numeric(substr($name, 0, 1))) {
-            $name = 'c'.$name;
+            $name = 'c' . $name;
         }
 
         $names = explode('_', $name);
         $className = "";
-        foreach($names as $item) {
-            $className.=ucfirst($item);
+        foreach ($names as $item) {
+            $className .= ucfirst($item);
         }
         $className .= 'MigrationCase';
 
@@ -824,20 +863,19 @@ class Migrations extends \Prefab
      */
     static function logIt($message, $failedMessage = false, $resetResult = false)
     {
-        $f3 = \Base::instance();
         if ($resetResult) {
-            $f3->set('lastLog', array());
-            $f3->set('lastLogError', false);
+            self::$lastLog = [];
+            self::$lastLogError = false;
         }
 
-        $f3->push('lastLog', $message);
+        self::$lastLog[] = $message;
         if ($failedMessage) {
-            $f3->set('lastLogError', $failedMessage);
+            self::$lastLogError = $failedMessage;
         }
 
-        if (self::$log) {
+        if (self::config('LOG')) {
             $logger = new \Log('migrations.log');
-            $logger->write($f3->scrub($message));
+            $logger->write(\Base::instance()->scrub($message));
         }
     }
 
