@@ -1,11 +1,9 @@
 # F3-Migrations
 
 F3-Migrations is a database helper plugin for the [Fat-Free Framework](http://github.com/bcosca/fatfree).
-It's similar to version control for `SQL` databases. Whenever you need to make changes to your database manually, you can create a `MigrationCase`, and the plugin will handle it.
+It's similar to version control for `SQL` databases. This is for automation so whenever you need to make changes to your database manually, you can create a `MigrationCase`, and the plugin will handle it.
 
-Tested on `php 8.2`, and `fatfree 3.9`. Not sure about lower versions.
-
-Tested on `php 8.4`, `fatfree 3.9`
+Tested on `php 8.4`, and `fatfree 3.9`. Not sure about lower versions.
 
 - [F3-Migrations](#f3-migrations)
   - [Installation](#instantiation)
@@ -26,7 +24,7 @@ If you use composer, run the below code:
 composer require `myaghobi/f3-migrations`
 ```
 
-For manual installation:
+For manual installation(the old way):
 
 1. Copy the content of `lib/` folder into your `lib/` folder.
 2. Install [Schema Builder](https://github.com/ikkez/f3-schema-builder) as mentioned in its documentation.
@@ -39,7 +37,7 @@ The plugin provides a simple interface, consists of 4 routes that will auto add 
 - `GET /migrations` displays the web interface
 - `GET /migrations/@action` triggers an action
 - `GET /migrations/@action/@target` specific target version for the action
-- `GET /migrations/theme/@type/@file` to retrieve css/js files if you have stored the UI dir in non-web-accessible path (recommended)
+- `GET /migrations/theme/@type/@file` to retrieve `css/js` files if you have stored the `UI` dir in non-web-accessible path (recommended)
 
 This extension will create a table in your database named `migrations` to handle migrations.
 
@@ -81,6 +79,9 @@ ENABLE=true
 ENABLE_DEBUG_LEVEL=3
 ; PATH is relative to your public/index.php file
 PATH=../app/migrations
+; it will override the PATH
+; PATH_ABSOLUTE=/var/www/html/app/migrations
+PATH_ABSOLUTE=
 SHOW_BY_VERSOIN=true
 LOG=true
 ```
@@ -103,4 +104,4 @@ You can find the action logs in `migrations.log`, which is located in the [LOGS]
 
 You are allowed to use this plugin under the terms of the GNU General Public License version 3 or later.
 
-Copyright (C) 2024 Mohammad Yaaghubi
+Copyright (C) 2025 Mohammad Yaaghubi
