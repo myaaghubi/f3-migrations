@@ -45,18 +45,6 @@
           </true>
         </check>
 
-        <check if="{{ @upgradeAvailable }}">
-          <true>
-            <dt>
-              <b>Upgrade Migration Cases</b>
-              (<a id='action_makepath' title='Upgrade migration cases from older version to current' href='{{@BASE}}/migrations/upgrademc'>upgrademc</a>)
-            </dt>
-            <dd>
-              Use <code>upgrademc</code> to upgrade migration cases from older version to current.
-            </dd>
-          </true>
-        </check>
-
         <check if="{{ @CLI }}">
           <true>
             <dt>
@@ -91,7 +79,7 @@
               <li>
                 <a title="Upgrade to {{@item->name.''.@item->version.' '.$item->timestamp}}" 
                   href="{{@BASE}}/migrations/migrate/{{@item->timestamp}}">
-                  {{@showByVersion && @item->version?@item->version:@item->name}}
+                  {{(@showByVersion && @item->version)?@item->version:@item->name}}
                 </a>
               </li>
             </repeat> 
@@ -152,7 +140,7 @@
     </div>
     <div class="row mt-3">
       <div class="col-md-12">
-        Current Migration Case: {{trim(@db_current_details)?:"-"}}
+        Current Migration Case: {{@dbCurrentStatus??"-"}}
       </div>
     </div>
     <hr>
