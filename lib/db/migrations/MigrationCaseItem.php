@@ -93,7 +93,7 @@ class MigrationCaseItem
     {
         $this->valid = false;
 
-        $result = glob(Migrations::$path . '*_migration_case_' . $timestamp . '.php');
+        $result = glob(rtrim(Migrations::path(), '/') . '/*_migration_case_' . $timestamp . '.php');
         if (count($result) == 1) {
             $this->parsByFile($result[0]);
         }
