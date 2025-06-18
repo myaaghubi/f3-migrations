@@ -100,10 +100,11 @@ class Migrations extends \Prefab
     {
         $path = self::config('PATH_ABSOLUTE');
         if (empty($path)) {
-            $path = rtrim(self::config('PATH'), '/');
+            $path = self::config('PATH');
             // relative to index.php
-            $path = dirname(\Base::instance()->get('SERVER.SCRIPT_FILENAME')) . '/' . $path . '/';
+            $path = dirname(\Base::instance()->get('SERVER.SCRIPT_FILENAME')) . '/' . $path;
         }
+        $path = rtrim($path, '/') . '/';
 
         return $path;
     }
@@ -229,8 +230,8 @@ class Migrations extends \Prefab
     function doIt($f3)
     {
         $params = $f3->get('PARAMS');
-        $action = $params['action']??'';
-        $target = $params['target']??'';
+        $action = $params['action'] ?? '';
+        $target = $params['target'] ?? '';
         self::logIt("Action: <b>$action</b> $target", false, true);
         $incomplete = $this->model->incompleteCases(1, false);
 
