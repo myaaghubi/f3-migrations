@@ -7,31 +7,46 @@ Tested on `php 8.4`, and `fatfree 3.9`. Not sure about lower versions.
 
 - [F3-Migrations](#f3-migrations)
   - [Installation](#instantiation)
+  - [Structure](#structure)
   - [Operation and basic usage](#operation-and-basic-usage)
     - [Instantiate](#instantiation)
-    - [First migration](#first-migration)
+    - [First Migration](#first-migration)
     - [Config](#config)
     - [Logging](#logging)
     - [CLI mode](#cli-mode)
   - [Upgrade](#upgrade)
   - [License](#license)
 
+## Structure
+
+This is the structure by default:
+```
+/root
+├── public
+│     └── index.php
+└── migrations
+      ├── [casename1]_migration_case_[timestamp1].php
+      ├── [casename2]_migration_case_[timestamp2].php
+      └── [casename3]_migration_case_[timestamp3].php
+```
+
 ## Installation
 
-If you use composer, run the below code:
+- If you use composer, run the below code:
 
-```
-composer require `myaghobi/f3-migrations`
-```
+  ```
+  composer require `myaghobi/f3-migrations`
+  ```
 
-For manual installation(the old way):
+- For manual installation(the old way):
 
-1. Copy the content of `lib/` folder into your `lib/` folder.
-2. Install [Schema Builder](https://github.com/ikkez/f3-schema-builder) as mentioned in its documentation.
-3. Install [Html2Text](https://github.com/mtibben/html2text), by placing the `html2text.php` in `lib/html2text/`.
+  1. Copy the content of `lib/` folder into your `lib/` folder.
+  2. Install [Schema Builder](https://github.com/ikkez/f3-schema-builder) as mentioned in its documentation.
+  3. Install [Html2Text](https://github.com/mtibben/html2text), by placing the `html2text.php` in `lib/html2text/`.
 
-## Operation and basic usage
+## Operation and Basic Usage
 
+Run `yourPublic/migrations` for the web interface.
 The plugin provides a simple interface, consists of 4 routes that will auto add to the app:
 
 - `GET /migrations` displays the web interface
@@ -56,6 +71,7 @@ $f3=require('lib/base.php');
 // MySQL, SQLite, PostgreSQL & SQL Server are supported
 $db = new \DB\SQL("mysql:host=localhost;port=3306;dbname={$DBName}", $user, $pass);
 ...
+// by default ENABLE_DEBUG_LEVEL is 3
 \DB\MIGRATIONS\Migrations::instance($db);
 $f3->run();
 ```
