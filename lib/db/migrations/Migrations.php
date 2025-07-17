@@ -174,7 +174,7 @@ class Migrations extends \Prefab
             // each MigrationCase is responsible to upgrade to itself and downgrade from itself
             // if the timestamp is x we need to downgrade all cases with higher version that x
             // so for downgrade, we need to keep the x therefor there is nothing to do with the case x
-            unset($downgradeItems[0]);
+            // unset($downgradeItems[0]);
 
             $carryCase = new MigrationCaseItem();
             $carryCase->timestamp = 0;

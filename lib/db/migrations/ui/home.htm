@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
@@ -11,15 +12,19 @@
     var BASE = "{{@BASE}}";
   </script>
 </head>
+
 <body>
   <!-- Responsive navbar-->
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container">
       <a class="navbar-brand" href="#">Migrations</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><span
+          class="navbar-toggler-icon"></span></button>
       <div class="collapse navbar-collapse" id="navbarSupportedContent">
         <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-          <li class="nav-item"><a class="nav-link {{empty(@PARAMS[1]) || @PARAMS[1]=='home'?'active':''}}" href="{{$BASE}}/migrations/">Home</a></li>
+          <li class="nav-item"><a class="nav-link {{empty(@PARAMS[1]) || @PARAMS[1]=='home'?'active':''}}"
+              href="{{$BASE}}/migrations/">Home</a></li>
         </ul>
       </div>
     </div>
@@ -36,10 +41,12 @@
           <true>
             <dt>
               <b>Make Path</b>
-              (<a id='action_makepath' title='Make the path folder if not exists' href='{{@BASE}}/migrations/makepath'>makepath</a>)
+              (<a id='action_makepath' title='Make the path folder if not exists'
+                href='{{@BASE}}/migrations/makepath'>makepath</a>)
             </dt>
             <dd>
-              Use <code>makepath</code> to create the path folder for migration cases according to the configuration.<br>
+              Use <code>makepath</code> to create the path folder for migration cases according to the
+              configuration.<br>
               Path: {{@path}}
             </dd>
           </true>
@@ -49,7 +56,8 @@
           <true>
             <dt>
               <b>Make Case</b>
-              (<a id='action_makecase' title='Make a migration case' href='{{@BASE}}/migrations/makecase/case_name'>makecase/case_name</a>)
+              (<a id='action_makecase' title='Make a migration case'
+                href='{{@BASE}}/migrations/makecase/case_name'>makecase/case_name</a>)
             </dt>
             <dd>
               Use <code>makecase</code> to create a new migration case with a timestamp
@@ -58,11 +66,17 @@
           <false>
             <dt>
               <b>Make Case</b>
-              (<a id='action_makecase' title='Make a migration case' href='#make_case'>makecase</a>)
+              (<a title='Make a migration case' id='action_makecase' href='#make_case'>makecase</a>)
             </dt>
             <dd>
               Use <code>makecase</code> to create a new migration case with a timestamp.
-              <input type="text" class="form-control form-control-sm mt-1" id="makecase_input" placeholder="Name and/or a version number (e.g. usertable or user_1.0)" required>
+              <div class="input-group">
+                <input type="text" class="form-control form-control-sm mt-1" id="makecase_input"
+                  placeholder="Name and/or a version number (e.g. usertable or user_1.0)" required>
+                <div class="input-group-append">
+                  <button class="btn btn-outline-secondary btn-sm mt-1" id='action_makecase_btn' type="button">Make</button>
+                </div>
+              </div>
             </dd>
           </false>
         </check>
@@ -77,12 +91,12 @@
           <ul class='targets'>
             <repeat group="{{@upgradeItems}}" value="{{@item}}">
               <li>
-                <a title="Upgrade to {{@item->name.''.@item->version.' '.$item->timestamp}}" 
+                <a title="Upgrade to {{@item->name.''.@item->version.' '.$item->timestamp}}"
                   href="{{@BASE}}/migrations/migrate/{{@item->timestamp}}">
                   {{(@showByVersion && @item->version)?@item->version:@item->name}}
                 </a>
               </li>
-            </repeat> 
+            </repeat>
           </ul>
         </dd>
 
@@ -92,16 +106,16 @@
         </dt>
         <dd>
           Use <code>rollback</code> to revert one step back on your migrations/upgrades.<br>
-          Downgrade to: <sub>{{empty(@downgradeItems)?'-':''}}</sub>
+          Downgrade: <sub>{{empty(@downgradeItems)?'-':''}}</sub>
           <ul class='targets'>
             <repeat group="{{@downgradeItems}}" value="{{@item}}">
               <li>
-                <a title="Downgrade to {{@item->name.''.@item->version.' '.$item->timestamp}}" 
+                <a title="Downgrade to {{@item->name.''.@item->version.' '.$item->timestamp}}"
                   href="{{@BASE}}/migrations/rollback/{{@item->timestamp}}">
                   {{@showByVersion && @item->version?@item->version:@item->name}}
                 </a>
               </li>
-            </repeat> 
+            </repeat>
           </ul>
         </dd>
 
@@ -110,7 +124,8 @@
           (<a id='action_refresh' title='Rollback all cases' href='{{@BASE}}/migrations/refresh'>refresh</a>)
         </dt>
         <dd>
-          The <code>refresh</code> action will rollback all of your migrations and then execute the <code>migrate</code> command.
+          The <code>refresh</code> action will rollback all of your migrations and then execute the <code>migrate</code>
+          command.
         </dd>
 
         <dt>
@@ -118,7 +133,8 @@
           (<a id='action_fresh' title='Drop all & Migrate' href='{{@BASE}}/migrations/fresh'>fresh</a>)
         </dt>
         <dd>
-          The <code>fresh</code> action will drop all tables from the database and then execute the <code>migrate</code>.
+          The <code>fresh</code> action will drop all tables from the database and then execute the
+          <code>migrate</code>.
         </dd>
 
         <dt>
@@ -148,11 +164,12 @@
       <a href="https://github.com/myaaghubi/f3-migrations">Fat-Free Migrations {{@version}}</a>
     </div>
   </div>
-</div>
+  </div>
 
-<!-- Bootstrap core JS-->
-<script src="{{$BASE}}/migrations/theme/js/bootstrap.bundle.min.js"></script>
+  <!-- Bootstrap core JS-->
+  <script src="{{$BASE}}/migrations/theme/js/bootstrap.bundle.min.js"></script>
 
-<script src="{{$BASE}}/migrations/theme/js/app.js"></script>
+  <script src="{{$BASE}}/migrations/theme/js/app.js"></script>
 </body>
+
 </html>
